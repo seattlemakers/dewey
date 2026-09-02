@@ -1,20 +1,23 @@
-Board:
-	Raspberry Pi 3B
-	OS: Raspberry Pi OS Trixie
+# Hardware Specifications and Behaviors
 
-Keypad:
-	Rows and columns are connected directly to pins with no diodes. Internal pull-ups are used. Strokes are detected on falling edge (key press) and do not repeat if the key is held.
-	Rows:
-		26, 21, 20, 16
+## Board:
+- Raspberry Pi 3B
+- OS: Raspberry Pi OS Trixie
+
+## Keypad:
+*Rows and columns are connected directly to pins with no diodes. Internal pull-ups are used. Strokes are detected on falling edge (key press) and do not repeat if the key is held.*
+
+Rows:
+- 26, 21, 20, 16
 		
-	Columns:
-		12, 24, 23, 18
+Columns:
+- 12, 24, 23, 18
 		
-	Layout:
-		F1, 1, 2, 3
-		F2, 4, 5, 6
-		F3, 7, 8, 9
-		F4, CLR, 0, ENT
+Layout:
+	F1, 1, 2, 3
+	F2, 4, 5, 6
+	F3, 7, 8, 9
+	14, CLR, 0, ENT
 		
 	Multi-Tap Character Assignment:
 		Maxiumum delay between key presses to cycle character: 500ms
