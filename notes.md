@@ -52,25 +52,27 @@ Layout:
 | CLR | Clear | `clr` |
 | ENT | Enter | `ent` |
 
-Power:		
-	Press green button 3x to shut down, 1x to wake.
-	Shutdown: 17
-	Wake: 3
+## Power:		
+*Press green button 3x to shut down, 1x to wake.*
+- Shutdown: 17
+- Wake: 3
 
-Switches:
-	Switches connect to GND, so should have internal pull-ups.
-	Yellow (Withdraw): 19 "withdraw"
-	Blue (Deposit): 13 "deposit"
-	White (Print): 6 "print"
-	Red (Read/Scan): 5 "read"
+## Switches:
+*Switches connect to GND, so should have internal pull-ups.*
+| Color | Function | Pin | Name |
+|--|--|--|--|
+| Yellow | Take (withdraw) | 19 | `take` |
+| Blue | Give (deposit) | 13 | `give` |
+| White | Print | 6 | `print` |
+| Red | Scan (take image) | 5 | `scan` |
 
-Printer:
+## Printer:
 	Baud rate: 19200
 	Firmware version: 2.16
 	TX: 14
 	RX: Not connected
 
-Screen:
+## Screen:
 	Driver: ILI9341
 	Width, Height: 320, 240
 	SCLK: 11
@@ -80,7 +82,7 @@ Screen:
 	DC: 25
 	RST: 24
 
-NFC:
+## NFC:
 	No interrupt pin connected
 	SDA: 2
 	SCL: 3
