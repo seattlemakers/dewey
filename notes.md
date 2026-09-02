@@ -14,10 +14,13 @@ Columns:
 - 12, 24, 23, 18
 		
 Layout:
-	F1, 1, 2, 3
-	F2, 4, 5, 6
-	F3, 7, 8, 9
-	14, CLR, 0, ENT
+| 12 | 24 | 23 | 18 |
+|----|----|----|----|
+| F1 | 1 | 2 | 3 |
+| F1 | 1 | 2 | 3 |
+| F2 | 4 | 5 | 6 |
+| F3 | 7 | 8 | 9 |
+| 14 | CLR | 0 | ENT |
 		
 	Multi-Tap Character Assignment:
 		Maxiumum delay between key presses to cycle character: 500ms
