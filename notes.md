@@ -21,20 +21,24 @@ Layout:
 | F2 | 4 | 5 | 6 |
 | F3 | 7 | 8 | 9 |
 | 14 | CLR | 0 | ENT |
+
+`ctest/keypad.py` can be used for reference.
 		
-	Multi-Tap Character Assignment:
-		Maxiumum delay between key presses to cycle character: 500ms
-		After this delay, the cursor moves on to the next character.
-		0: 0
-		1: 1, Q, Z
-		2: 2, A, B, C
-		3: 3, D, E, F
-		4: 4, G, H, I
-		5: 5, J, K, L
-		6: 6, M, N, O
-		7: 7, P, R, S
-		8: 8, T, U, V
-		9: 9, W, X, Y
+Multi-Tap Character Assignment:
+	Maxiumum delay between key presses to cycle character: 500ms
+	After this delay, the cursor moves on to the next character.
+| Number key | Character cycle |
+|--|--|
+| 0 | 0 |
+| 1 | 1, Q, Z |
+| 2 | 2, A, B, C |
+| 3 | 3, D, E, F |
+| 4 | 4, G, H, I |
+| 5 | 5, J, K, L |
+| 6 | 6, M, N, O |
+| 7 | 7, P, R, S |
+| 8 | 8, T, U, V |
+| 9 | 9, W, X, Y |
 	
 	Function Assignment:
 		F1: Up "up"
