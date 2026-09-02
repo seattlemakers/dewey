@@ -19,13 +19,15 @@ Layout:
 | 26 | F1 | 1 | 2 | 3 |
 | 21 | F2 | 4 | 5 | 6 |
 | 20 | F3 | 7 | 8 | 9 |
-| 16 | CLR | 0 | ENT |
+| 16 | F4 | CLR | 0 | ENT |
 
 `ctest/keypad.py` can be used for reference.
-		
-Multi-Tap Character Assignment:
-	Maxiumum delay between key presses to cycle character: 500ms
-	After this delay, the cursor moves on to the next character.
+
+
+### Multi-Tap Character Assignment
+*Maxiumum delay between key presses to cycle character: 500ms.*
+*After this delay, the cursor moves on to the next character.*
+
 | Number key | Character cycle |
 |--|--|
 | 0 | 0 |
@@ -38,14 +40,17 @@ Multi-Tap Character Assignment:
 | 7 | 7, P, R, S |
 | 8 | 8, T, U, V |
 | 9 | 9, W, X, Y |
-	
-	Function Assignment:
-		F1: Up "up"
-		F2: Down "down"
-		F3: Backspace "bsp"
-		F4: Escape "esc"
-		CLR: Clear "clr"
-		ENT: Enter "ent"
+
+
+### Function Assignment
+| Key | Function | Name |
+|--|--|--|
+| F1 | Up | `up` |
+| F2 | Down | `down` |
+| F3 | Backspace | `bsp` |
+| F4 | Escape | `esc` |
+| CLR | Clear | `clr` |
+| ENT | Enter | `ent` |
 
 Power:		
 	Press green button 3x to shut down, 1x to wake.
