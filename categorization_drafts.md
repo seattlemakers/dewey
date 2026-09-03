@@ -173,6 +173,77 @@
 
 ## Draft 1
 *(Breakout boards are listed in the least significant category BEFORE bare chips with the same function.)*
+
+### 15 Components
+#### Resistors
+- Potentiometers
+#### Capacitors
+#### Fuses
+#### Diodes
+#### Transistors
+#### Coils / Relays / Magnets
+#### LEDs and Illumination
+#### Buttons and Switches
+#### Encoders
+#### Connectors / Cables
+- Power
+
+### Integrated Circuits, Interfaces
+#### ADC/DAC
+- ADCs
+- DACs
+- Digital potentiometers
+#### Oscillators, Crystals, RTC
+- Oscillator ICs
+	- Digitally controlled
+	- Voltage controlled
+- Crystals
+	- Bare crystals
+	- Crystal oscillators
+- RTCs
+#### Memory
+- PSRAM
+- Flash
+- EEPROM
+- Computer memory
+	- SSDs
+	- SD Cards
+	- USB flash drives
+	- SD Card Connectors/Adapters
+#### Logic
+- 7400 Series
+- 4000 Series
+#### Serial, Debug, Programming
+- UART
+- CAN Bus
+- I2C
+- USB
+	- USB converters/interfaces
+	- PD controllers / USB C controllers
+- Programmers
+	- JTAG
+	- AVR
+	- UPDI
+	- ISP
+
+### 35 Development Boards
+- Microcontrollers
+- Single Board Computers
+- Machine Learning & AI
+- FPGA
+
+### 75 IoT & Wireless
+- Bluetooth
+- Cellular / LTE
+- LoRa
+- Mesh Network
+- Radio Frequency
+- Sattelite Communication
+- Software Defined Radio
+- WiFi
+- IOT & Wireless Antennas
+- Wireless & IoT Kits
+
 ### 05 Audio
 - Audio ADCs, DACs, CODECs
 - Audio Players/Triggers
@@ -185,44 +256,24 @@
 - Audio Connectors
 - Audio Cables
 
-### 15 Components
-- Buttons and Switches
-- Cables
-- Capacitors
-- Connectors
-- Diodes
-- Encoders
-- ICs
-- LEDs and Illumination
-- Magnets
-- Oscillators
-- Potentiometers
-- Power
-- Resistors
-- Transistors
+### 95 Sensors
+- Biometric Sensors
+- Capacitive Sensors
+- Current Sensors
+- Distance Sensors
+- Environmental Sensors
+- Flex / Force Sensors
+- Imaging Sensors
+- Infared Sensors
+- Miscellaneous Sensors
+- Movement Sensors
+- NFC Sensors
+- RFID Sensors
+- Sensor Kits
+- Sount
+- Weight
 
-### 25 Data Logging and Memory
-- PSRAM
-- Flash
-- EEPROM
-- SSDs
-- SD Cards
-- SD Card Connectors/Adapters
-
-### 35 Development Boards
-- ADC/DAC
-- Cryptographic
-- FPGA
-- Machine Learning & AI
-- Microcontrollers
-- Logic
-- Msc Dev Tools
-- Programmers
-- Prototyping Boards
-- Real Time Clock
-- Single Board Computers
-
-### 45 Displays
+### 45 Displays/Video
 - Character LCDs
 - Graphic LCDs
 - Color LCDs
@@ -247,18 +298,6 @@
 - GPS / GNSS Boards and Modules
 - GPS / GNSS Antennas
 
-### 75 IoT & Wireless
-- Bluetooth
-- Cellular / LTE
-- LoRa
-- Mesh Network
-- Radio Frequency
-- Sattelite Communication
-- Software Defined Radio
-- WiFi
-- IOT & Wireless Antennas
-- Wireless & IoT Kits
-
 ### 85 Robotics
 - Hardware
 - Motors
@@ -266,20 +305,3 @@
 - Other Robotics Gear
 - Robotics Parts
 - Robotics Kits
-
-### 95 Sensors
-- Biometric Sensors
-- Capacitive Sensors
-- Current Sensors
-- Distance Sensors
-- Environmental Sensors
-- Flex / Force Sensors
-- Imaging Sensors
-- Infared Sensors
-- Miscellaneous Sensors
-- Movement Sensors
-- NFC Sensors
-- RFID Sensors
-- Sensor Kits
-- Sount
-- Weight
