@@ -10,7 +10,7 @@ uart = serial.Serial("/dev/serial0", baudrate=19200, timeout=3000)
 print("uart done")
 
 from adafruit_thermal_printer.thermal_printer_legacy import ThermalPrinter
-import adafruit_thermal_printer.thermal_printer_legacy as adafruit_thermal_printer
+import adafruit_thermal_printer
 
 
 print("pritner done")
