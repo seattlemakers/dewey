@@ -9,13 +9,8 @@ uart = serial.Serial("/dev/serial0", baudrate=9600, timeout=3000)
 
 print("uart done")
 
-import adafruit_thermal_printer
+from adafruit_thermal_printer.thermal_printer_legacy import ThermalPrinter
 
-# Pick which version thermal printer class to use depending on the version of
-# your printer.  Hold the button on the printer as it's powered on and it will
-# print a test page that displays the firmware version, like 2.64, 2.68, etc.
-# Use this version in the get_printer_class function below.
-ThermalPrinter = adafruit_thermal_printer.get_printer_class(2.16)
 
 print("pritner done")
 
