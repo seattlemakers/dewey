@@ -15,7 +15,7 @@ import adafruit_thermal_printer
 # your printer.  Hold the button on the printer as it's powered on and it will
 # print a test page that displays the firmware version, like 2.64, 2.68, etc.
 # Use this version in the get_printer_class function below.
-ThermalPrinter = adafruit_thermal_printer.get_printer_class(2.16.08)
+ThermalPrinter = adafruit_thermal_printer.get_printer_class(2.16)
 
 print("pritner done")
 
