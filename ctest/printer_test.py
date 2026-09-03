@@ -15,7 +15,7 @@ import adafruit_thermal_printer
 # your printer.  Hold the button on the printer as it's powered on and it will
 # print a test page that displays the firmware version, like 2.64, 2.68, etc.
 # Use this version in the get_printer_class function below.
-ThermalPrinter = adafruit_thermal_printer.get_printer_class(2.16)
+ThermalPrinter = adafruit_thermal_printer.get_printer_class(2.16.08)
 
 print("pritner done")
 
@@ -54,13 +54,15 @@ print("warmed up")
 #    print("Printer might be out of paper, or RX is disconnected!")
 
 # Print a test page:
-printer.test_page()
+#printer.test_page()
 
 # Move the paper forward two lines:
 printer.feed(2)
 
 # Print a line of text:
 printer.print("Hello world!")
+
+printer.feed(2)
 
 # Print a bold line of text:
 printer.bold = True
