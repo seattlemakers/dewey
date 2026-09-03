@@ -174,7 +174,7 @@
 ## Draft 1
 *(Breakout boards are listed in the least significant category BEFORE bare chips with the same function.)*
 
-### 15 Components
+### Components
 #### Resistors
 - Potentiometers
 #### Capacitors
@@ -186,13 +186,13 @@
 #### Buttons and Switches
 #### Encoders
 #### Connectors / Cables
-- Power
 
 ### Integrated Circuits, Interfaces
 #### ADC/DAC
 - ADCs
 - DACs
 - Digital potentiometers
+#### IO Expanders
 #### Oscillators, Crystals, RTC
 - Oscillator ICs
 	- Digitally controlled
@@ -214,25 +214,66 @@
 - 7400 Series
 - 4000 Series
 #### Serial, Debug, Programming
+- Logic level converters
 - UART
+	- UART transcievers
 - CAN Bus
+	- CAN bus transcievers
 - I2C
+	- I2C multiplexers
 - USB
+	- USB controllers
+	- PD controllers
 	- USB converters/interfaces
-	- PD controllers / USB C controllers
+		- USB to GPIO, UART, etc.
+		- USB to PWM
+		- USB to HID, keyboard, etc.
 - Programmers
 	- JTAG
 	- AVR
 	- UPDI
 	- ISP
+#### Power ICs
+- Linear regulators
+- Switching regulators, buck/boost converters
+- Battery management/charge controllers
+- Other power management
 
-### 35 Development Boards
+### Development Boards
 - Microcontrollers
+	- AVR
+		- ATTiny
+		- ATMega
+	- PIC
+	- ARM
+		- SAMD
+		- RP2040/235x
+		- STM32
+		- Other ARM
+	- ESP
+		- ESP8266
+		- ESP32
+			- ESP32 Classic
+			- ESP32-S
 - Single Board Computers
+*(AI cameras and Pi cameras are categorized with other cameras)*
+	- Raspberry Pi 
+		- 1
+		- 2
+		- 3
+		- 4
+		- 5
+		- CM
+			- CM boards
+			- Accessories/Breakouts
+		- HATs and accessories
+	- BeagleBone
+	- Other
 - Machine Learning & AI
+	- AI Accelerators/TPUs/GPUs
 - FPGA
 
-### 75 IoT & Wireless
+### IoT & Wireless
 - Bluetooth
 - Cellular / LTE
 - LoRa
@@ -244,7 +285,7 @@
 - IOT & Wireless Antennas
 - Wireless & IoT Kits
 
-### 05 Audio
+### Audio
 - Audio ADCs, DACs, CODECs
 - Audio Players/Triggers
 - Audio Amplifiers
@@ -256,7 +297,7 @@
 - Audio Connectors
 - Audio Cables
 
-### 95 Sensors
+### Sensors
 - Biometric Sensors
 - Capacitive Sensors
 - Current Sensors
@@ -273,7 +314,7 @@
 - Sount
 - Weight
 
-### 45 Displays/Video
+### Displays/Video
 - Character LCDs
 - Graphic LCDs
 - Color LCDs
@@ -284,7 +325,7 @@
 - HDMI, NTSC, PAL Monitors
 - Video ICs
 	
-### 55 E-Textiles & Crafting
+### E-Textiles & Crafting
 - (E-textile/Craft category takes priority over all others)
 - E-textile Microcontrollers
 - E-Textile Lights
@@ -293,15 +334,17 @@
 - E-textile Materials
 - Craft Electronics/Kits
 
-### 65 GPS / GNSS
+### GPS / GNSS
 - (GPS category takes priority over other sensors/IMUs)
 - GPS / GNSS Boards and Modules
 - GPS / GNSS Antennas
 
-### 85 Robotics
+### Robotics, Actuators, RC
 - Hardware
 - Motors
 - Motor Drivers
+- Solenoids
+- RC Parts
 - Other Robotics Gear
 - Robotics Parts
 - Robotics Kits
