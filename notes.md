@@ -68,6 +68,7 @@ Layout:
 
 ## Printer:
 *Use the functions defined in this repo; the `adafruit_thermal_printer` library will NOT work with this printer firmware version.*
+- Maximum page width: 32 normal-size characters
 - Baud rate: 19200
 - Firmware version: 2.16
 - TX: 14
