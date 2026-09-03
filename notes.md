@@ -16,12 +16,12 @@ Columns:
 Layout:
 | Row pin | 12 | 24 | 23 | 18 |
 |--|----|----|----|----|
-| 26 | F1 | 1 | 2 | 3 |
-| 21 | F2 | 4 | 5 | 6 |
-| 20 | F3 | 7 | 8 | 9 |
-| 16 | F4 | CLR | 0 | ENT |
+| **26** | F1 | 1 | 2 | 3 |
+| **21** | F2 | 4 | 5 | 6 |
+| **20** | F3 | 7 | 8 | 9 |
+| **16** | F4 | CLR | 0 | ENT |
 
-`ctest/keypad.py` can be used for reference.
+*`ctest/keypad.py` can be used for reference.*
 
 
 ### Multi-Tap Character Assignment
@@ -67,27 +67,28 @@ Layout:
 | Red | Scan (take image) | 5 | `scan` |
 
 ## Printer:
-	Baud rate: 19200
-	Firmware version: 2.16
-	TX: 14
-	RX: Not connected
+*Use the functions defined in this repo; the `adafruit_thermal_printer` library will NOT work with this printer firmware version.*
+- Baud rate: 19200
+- Firmware version: 2.16
+- TX: 14
+- RX: Not connected
 
 ## Screen:
-	Driver: ILI9341
-	Width, Height: 320, 240
-	SCLK: 11
-	MOSI: 10
-	MISO: Not connected
-	CS: CE0
-	DC: 25
-	RST: 24
+- Driver: ILI9341
+- Width, Height: 320, 240
+- SCLK: 11
+- MOSI: 10
+- MISO: Not connected
+- CS: CE0
+- DC: 25
+- RST: 24
 
 ## NFC:
-	No interrupt pin connected
-	SDA: 2
-	SCL: 3
+*No interrupt pin connected*
+- SDA: 2
+- SCL: 3
 
-Camera:
-	Logitech USB webcam
-	Width, Height: 1920, 1080
+## Camera:
+*Logitech USB webcam*
+- Width, Height: 1920, 1080
 
