@@ -5,7 +5,7 @@
 # Author: Tony DiCola
 # On the Raspberry Pi with built-in UART:
 import serial
-uart = serial.Serial("/dev/serial0", baudrate=9600, timeout=3000)
+uart = serial.Serial("/dev/serial0", baudrate=19200, timeout=3000)
 
 print("uart done")
 
