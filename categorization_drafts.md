@@ -181,7 +181,26 @@
 #### Fuses
 #### Diodes
 #### Transistors
-#### Coils / Relays / Magnets
+#### Coils / Relays
+- Inductors
+	- THT
+	- SMT
+- Ferrites
+	- Ferrite beads
+		- THT
+		- SMT
+	- Ferrite toroids
+	- Snap-on ferrites
+- Filters and reactors
+	- 
+- Transformers
+	- Power transformers
+	- Signal transformers
+		- Audio transformers
+		- Ethernet transformers
+- Relays
+	- Electromagnetic relays
+	- Solid-state relays
 #### LEDs and Illumination
 #### Buttons and Switches
 #### Encoders
@@ -201,6 +220,11 @@
 	- Bare crystals
 	- Crystal oscillators
 - RTCs
+#### Op Amps, Comparators
+	- General op-amps
+	- OTA
+	- Comparators
+#### Filter ICs
 #### Memory
 - PSRAM
 - Flash
@@ -232,7 +256,6 @@
 	- JTAG
 	- AVR
 	- UPDI
-	- ISP
 #### Power ICs
 - Linear regulators
 - Switching regulators, buck/boost converters
@@ -286,17 +309,10 @@
 - IOT & Wireless Antennas
 - Wireless & IoT Kits
 
-### Audio
-- Audio ADCs, DACs, CODECs
-- Audio Players/Triggers
-- Audio Amplifiers
-- FM/AM Tuners
-- MIDI Interfaces
-- Other Audio ICs
-- Microphones
-- Speakers, Buzzers, Piezo Elements
-- Audio Connectors
-- Audio Cables
+### GPS / GNSS
+- (GPS category takes priority over other sensors/IMUs)
+- GPS / GNSS Boards and Modules
+- GPS / GNSS Antennas
 
 ### Sensors
 - Biometric Sensors
@@ -314,6 +330,18 @@
 - Sensor Kits
 - Sount
 - Weight
+
+### Audio
+- Audio ADCs, DACs, CODECs
+- Audio Players/Triggers
+- Audio Amplifiers
+- FM/AM Tuners
+- MIDI Interfaces
+- Other Audio ICs
+- Microphones
+- Speakers, Buzzers, Piezo Elements
+- Audio Connectors
+- Audio Cables
 
 ### Displays/Video
 - Character LCDs
@@ -335,17 +363,11 @@
 - E-textile Materials
 - Craft Electronics/Kits
 
-### GPS / GNSS
-- (GPS category takes priority over other sensors/IMUs)
-- GPS / GNSS Boards and Modules
-- GPS / GNSS Antennas
-
 ### Robotics, Actuators, RC
-- Hardware
-- Motors
+- Actuators
+	- Motors
+	- Solenoids
+	- Pumps
 - Motor Drivers
-- Solenoids
 - RC Parts
-- Other Robotics Gear
-- Robotics Parts
-- Robotics Kits
+- Robotics hardware
