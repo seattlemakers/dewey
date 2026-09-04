@@ -57,8 +57,8 @@ class DeweyApp:
 
     def run(self) -> None:
         """Main application loop."""
-        logger.info("Dewey system started. Entering IDLE state.")
-        self.display.show_status("DEWEY SYSTEM", "Initializing camera view...")
+        logger.info("LABRARIAN MK 1 started. Initializing...")
+        self.display.show_status("LABRARIAN MK 1", "Initializing camera view...")
         time.sleep(0.8)
 
         try:
@@ -164,10 +164,10 @@ class DeweyApp:
 
     def shutdown(self) -> None:
         """Clean shutdown of all hardware resources."""
-        logger.info("Shutting down Dewey system...")
+        logger.info("Shutting down LABRARIAN MK 1...")
         self.running = False
         try:
-            self.display.show_status("DEWEY", "Shutting down...")
+            self.display.show_status("LABRARIAN MK 1", "Shutting down...")
             time.sleep(0.3)
         except Exception:
             pass
@@ -179,7 +179,7 @@ class DeweyApp:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Dewey Electronic Component System")
+    parser = argparse.ArgumentParser(description="LABRARIAN MK 1 - Electronic Component System")
     parser.add_argument("--mock", action="store_true", help="Run with simulated hardware")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     args = parser.parse_args()

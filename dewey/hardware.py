@@ -104,8 +104,10 @@ class HardwareManager:
         self.btn_print: Optional[Button] = None
         self.keypad = Keypad4x4()
 
-        self._prev_scan_state = False
-        self._prev_print_state = False
+        # Default to True so that startup state requires observing a released (False)
+        # state before a press event can fire (prevents spurious startup triggers)
+        self._prev_scan_state = True
+        self._prev_print_state = True
 
         self._init_buttons()
 
@@ -116,8 +118,13 @@ class HardwareManager:
 
         try:
             # Buttons connect to GND; pull_up=True detects press when pin goes LOW
-            self.btn_scan = Button(PIN_SCAN_SWITCH, pull_up=True, bounce_time=0.05)
-            self.btn_print = Button(PIN_PRINT_SWITCH, pull_up=True, bounce_time=0.05)
+            self.btn_scan = Button(PIN_SCAN_SWITCH, pull_up=True, bounce_time=0.08)
+            self.btn_print = Button(PIN_PRINT_SWITCH, pull_up=True, bounce_time=0.08)
+
+            # Allow internal pull-ups to electrically settle, then sync initial state
+            time.sleep(0.05)
+            self._prev_scan_state = True
+            self._prev_print_state = True
             logger.info("Buttons initialized: Scan on GPIO %d, Print on GPIO %d", PIN_SCAN_SWITCH, PIN_PRINT_SWITCH)
         except Exception as err:
             logger.warning("Failed to initialize buttons: %s (mock buttons mode)", err)
