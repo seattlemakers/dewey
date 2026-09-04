@@ -74,6 +74,9 @@ class CameraManager:
             logger.error("Failed to read high-res snapshot from camera.")
             return None
 
+        # Camera is mounted inverted; rotate 180 degrees so photo sent to Gemini is right-side up
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+
         ret, jpeg_buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
         if not ret:
             logger.error("Failed to encode frame to JPEG.")

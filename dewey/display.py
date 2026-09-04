@@ -86,24 +86,23 @@ class DisplayManager:
             self.disp = None
 
     def _present(self, img: Image.Image) -> None:
-        """Applies physical orientation transformations and sends buffer to display."""
+        """Pushes an image buffer directly to the display in native landscape orientation."""
         if not self.disp:
             return
 
         try:
-            # Match physical landscape transformation from cam_display.py:
-            # 1. Resize to match display dimension (320x240)
             frame = img.resize((self.width, self.height), Image.Resampling.BILINEAR)
-            # 2. Invert axes matching physical board mounting
-            frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
-            frame = frame.transpose(Image.FLIP_LEFT_RIGHT)
             self.disp.image(frame)
         except Exception as err:
             logger.error("Failed to render frame on display: %s", err)
 
     def show_camera_frame(self, frame: Image.Image) -> None:
-        """Presents a live camera frame on the LCD."""
-        self._present(frame)
+        """Presents a live camera frame on the LCD.
+        Camera hardware is mounted inverted relative to the screen;
+        flip both axes so the camera stream is right-side up.
+        """
+        oriented_frame = frame.transpose(Image.FLIP_TOP_BOTTOM).transpose(Image.FLIP_LEFT_RIGHT)
+        self._present(oriented_frame)
 
     def show_status(self, title: str, message: str = "") -> None:
         """Displays an intermediate status/progress screen (e.g. Scanning/Analyzing)."""

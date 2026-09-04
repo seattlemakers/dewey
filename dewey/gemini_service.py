@@ -95,12 +95,37 @@ class GeminiComponentIdentifier:
             temperature=0.2,
         )
 
-        logger.info("Sending image to Gemini (%s)...", self.model)
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=[image_part, prompt],
-            config=config,
-        )
+        # Primary and candidate fallback models
+        candidate_models = [self.model]
+        for fallback in ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"]:
+            if fallback not in candidate_models:
+                candidate_models.append(fallback)
+
+        response = None
+        last_err = None
+
+        for candidate in candidate_models:
+            try:
+                logger.info("Sending image to Gemini (%s)...", candidate)
+                response = self.client.models.generate_content(
+                    model=candidate,
+                    contents=[image_part, prompt],
+                    config=config,
+                )
+                if candidate != self.model:
+                    logger.info("Switched active model to '%s'.", candidate)
+                    self.model = candidate
+                break
+            except Exception as err:
+                last_err = err
+                err_str = str(err)
+                if "404" in err_str or "NOT_FOUND" in err_str or "no longer available" in err_str:
+                    logger.warning("Model '%s' not available. Trying fallback...", candidate)
+                    continue
+                raise err
+
+        if response is None and last_err is not None:
+            raise last_err
 
         raw_text = response.text or "{}"
         try:

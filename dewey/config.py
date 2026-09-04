@@ -62,5 +62,6 @@ PRINTER_BAUDRATE = 19200
 PRINTER_CHARS_PER_LINE = 32
 
 # --- Gemini API ---
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 MAX_DESCRIPTION_WORDS = 100
+
