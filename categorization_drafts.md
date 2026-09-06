@@ -192,7 +192,6 @@
 	- Ferrite toroids
 	- Snap-on ferrites
 - Filters and reactors
-	- 
 - Transformers
 	- Power transformers
 	- Signal transformers
