@@ -16,8 +16,10 @@ from dewey.thermal_printer import LegacyThermalPrinter
 # so no arguments are needed here.
 printer = LegacyThermalPrinter()
 
-print("Starting printer")
+print("Starting printer...")
 
+# 1. First print: Native ASCII text mode
+print("1/2: Printing component label in ASCII mode...")
 printer.print_component_label(
     part_number="LM358P",
     description=(
@@ -25,7 +27,23 @@ printer.print_component_label(
         "3V-32V supply, 1MHz GBW. "
         "Bin: A3 / Drawer 12."
     ),
+    mode="text",
+)
+
+# Brief feed/pause between labels
+printer.feed(2)
+
+# 2. Second print: Bitmap graphics mode (Pillow-rendered system fonts)
+print("2/2: Printing component label in Bitmap mode...")
+printer.print_component_label(
+    part_number="LM358P",
+    description=(
+        "Dual general-purpose op-amp, DIP-8, "
+        "3V-32V supply, 1MHz GBW. "
+        "Bin: A3 / Drawer 12."
+    ),
+    mode="bitmap",
 )
 
 printer.close()
-print("Label test completed successfully.")
+print("All label tests completed successfully.")

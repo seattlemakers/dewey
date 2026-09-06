@@ -196,12 +196,10 @@ class LegacyThermalPrinter:
             logger.info("[PRINTER MOCK BITMAP] %dx%d px", w, h)
             return
 
-        # Ensure dark heat & density settings are active before printing
+        # Ensure dark heat settings are active before printing
         self.set_heat_config()
-        self.set_print_density()
 
         # Set line spacing to 24 dots so strips tile flush
-        self._wait_for_ready()
         self.ser.write(b'\x1b\x33\x18')  # ESC 3 24
         self.ser.flush()
 
@@ -227,7 +225,6 @@ class LegacyThermalPrinter:
             nL = w & 0xFF
             nH = (w >> 8) & 0xFF
             strip_packet = b'\x1b\x2a\x21' + bytes([nL, nH]) + bytes(col_data) + b'\n'
-            self._wait_for_ready()
             self.ser.write(strip_packet)
             self.ser.flush()
             # Inter-strip pause: burning 24 dot lines takes ~250-300ms.
@@ -237,7 +234,6 @@ class LegacyThermalPrinter:
             time.sleep(0.35)
 
         # Restore default line spacing (1/6 inch)
-        self._wait_for_ready()
         self.ser.write(b'\x1b\x32')  # ESC 2
         self.ser.flush()
 
