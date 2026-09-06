@@ -231,10 +231,6 @@ class LegacyThermalPrinter:
             self.ser.write(b'\n')  # advance 24 dots
             self.ser.flush()
 
-            # Pacing: ensure UART buffer empty + allow internal capacitors to recharge
-            # and prevent firmware thermal throttling from degrading subsequent strips
-            time.sleep(0.025 * strip_h)
-
         # Restore default line spacing (1/6 inch)
         self._wait_for_ready()
         self.ser.write(b'\x1b\x32')  # ESC 2
