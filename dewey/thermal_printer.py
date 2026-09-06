@@ -88,7 +88,10 @@ class LegacyThermalPrinter:
 
         try:
             self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=self.timeout)
-            time.sleep(0.5)
+            # Flush OS serial buffers to clear any stale bits or framing errors
+            self.ser.reset_input_buffer()
+            self.ser.reset_output_buffer()
+            time.sleep(0.3)
             self.reset()
             logger.info("Thermal printer connected on %s at %d baud.", self.port, self.baudrate)
         except Exception as err:
@@ -100,10 +103,9 @@ class LegacyThermalPrinter:
         if self.ser:
             self._wait_for_ready()
             self.ser.write(b'\x1b\x40')
-            time.sleep(0.1)
-            # Enable DTR/ASB flow control on printer if DTR pin is configured
-            if self.dtr_pin is not None:
-                self.ser.write(b'\x1d\x61\x20')  # GS a 32 (enable ASB / DTR)
+            # The printer microcontroller needs 350ms to cold boot and reinitialize its RAM/line buffer
+            time.sleep(0.35)
+            self.ser.reset_input_buffer()
         # Apply dark heating parameters immediately after reset
         self.set_heat_config()
         self.set_print_density()
@@ -169,6 +171,8 @@ class LegacyThermalPrinter:
             for _ in range(lines):
                 self._wait_for_ready()
                 self.ser.write(b'\n')
+                time.sleep(0.04)
+            self.ser.flush()
         else:
             logger.info("[PRINTER MOCK FEED %d lines]", lines)
 
@@ -442,13 +446,18 @@ class LegacyThermalPrinter:
 
         # Part Number (Large 2× Width/Height, Bold)
         self.set_justification('left')
+        time.sleep(0.02)
         self.set_bold(True)
+        time.sleep(0.02)
         self.set_size('large')
+        time.sleep(0.02)
         self.write_line(part_number)
 
         # Reset to normal size and weight for the divider and description
         self.set_size('normal')
+        time.sleep(0.02)
         self.set_bold(False)
+        time.sleep(0.02)
         self.write_line("-" * PRINTER_CHARS_PER_LINE)
 
         # Description (Normal size, non-bold, word-wrapped to paper width)
@@ -460,15 +469,13 @@ class LegacyThermalPrinter:
         self.feed(3)
 
     def close(self) -> None:
-        """Closes the serial connection and releases GPIO resources safely."""
+        """Flushes pending writes, waits for mechanical completion, and closes cleanly."""
         if self.ser:
             try:
+                self.ser.flush()
+                # Crucial: let stepper motor finish physical paper feed before dropping UART
+                time.sleep(0.25)
                 self.ser.close()
             except Exception:
                 pass
             self.ser = None
-        if self.dtr_pin is not None and GPIO is not None:
-            try:
-                GPIO.cleanup(self.dtr_pin)
-            except Exception:
-                pass
