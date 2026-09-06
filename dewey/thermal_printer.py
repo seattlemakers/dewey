@@ -144,10 +144,15 @@ class LegacyThermalPrinter:
             logger.info("[PRINTER MOCK] set_double_strike(%s)", enabled)
 
     def write_line(self, text: str) -> None:
-        """Prints a string line encoded in ASCII/CP437 layout."""
+        """Prints a string line encoded in ASCII/CP437 layout.
+
+        A short sleep is added after each write so the printer fully heats and
+        resets between lines, preventing faded/streaky output from buffer pressure.
+        """
         if self.ser:
             self._wait_for_ready()
             self.ser.write(text.encode('ascii', errors='ignore') + b'\n')
+            time.sleep(0.05)
         else:
             logger.info("[PRINTER MOCK] %s", text)
 
