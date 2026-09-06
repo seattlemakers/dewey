@@ -269,10 +269,8 @@ class LegacyThermalPrinter:
                     pass
             return ImageFont.load_default()
 
-        # Both use BOLD font paths so all text has thick, solid glyph strokes
-        # that deposit sufficient thermal energy on thermal paper
-        font_pn = _load_font(FONT_PATHS_BOLD, 38)     # large part-number
-        font_desc = _load_font(FONT_PATHS_BOLD, 22)   # bold description
+        font_pn = _load_font(FONT_PATHS_BOLD, 38)     # large part-number (bold)
+        font_desc = _load_font(FONT_PATHS_NORMAL, 22) # normal description (clean & readable)
 
         # --- Measure and word-wrap description ---
         dummy = Image.new('1', (1, 1))
@@ -283,7 +281,7 @@ class LegacyThermalPrinter:
             lines, current = [], []
             for word in words:
                 trial = ' '.join(current + [word])
-                bbox = draw_dummy.textbbox((0, 0), trial, font=font, stroke_width=1)
+                bbox = draw_dummy.textbbox((0, 0), trial, font=font)
                 if bbox[2] - bbox[0] > max_w and current:
                     lines.append(' '.join(current))
                     current = [word]
@@ -296,7 +294,7 @@ class LegacyThermalPrinter:
         desc_lines = _wrap(description, font_desc, usable_w)
 
         def _measure_text_h(text: str, font) -> int:
-            bbox = draw_dummy.textbbox((0, 0), text, font=font, stroke_width=1)
+            bbox = draw_dummy.textbbox((0, 0), text, font=font)
             return bbox[3] - bbox[1]
 
         pn_h = _measure_text_h(part_number, font_pn)
@@ -320,7 +318,7 @@ class LegacyThermalPrinter:
         y += 2 + sep_gap
 
         for line in desc_lines:
-            draw.text((MARGIN, y), line, font=font_desc, fill=0, stroke_width=1)
+            draw.text((MARGIN, y), line, font=font_desc, fill=0)
             y += line_h
 
         return img
