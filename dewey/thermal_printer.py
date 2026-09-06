@@ -252,8 +252,8 @@ class LegacyThermalPrinter:
                     pass
             return ImageFont.load_default()
 
-        font_pn = _load_font(FONT_PATHS_BOLD, 28)    # large part-number
-        font_desc = _load_font(FONT_PATHS_NORMAL, 16) # normal description
+        font_pn = _load_font(FONT_PATHS_BOLD, 56)    # large part-number
+        font_desc = _load_font(FONT_PATHS_NORMAL, 32) # normal description
 
         # --- Measure and word-wrap description ---
         dummy = Image.new('1', (1, 1))
