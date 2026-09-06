@@ -171,57 +171,61 @@ class LegacyThermalPrinter:
     # --- BITMAP / RASTER PRINTING ---
 
     def print_bitmap(self, image: "Image.Image") -> None:
-        """Sends a PIL image to the printer as an ESC/POS raster bitmap (GS v 0).
+        """Sends a PIL image using ESC * 24-dot double-density column mode.
 
-        The image is converted to 1-bit (black-on-white) and its width is padded
-        to a multiple of 8 bits before encoding.  Each row is sent as a packed
-        sequence of bytes, MSB first (leftmost pixel = bit 7 of byte 0).
+        GS v 0 (raster mode) is unreliable on v2.16 firmware.  ESC * (column
+        bit-image mode) is the legacy-safe method used by the Adafruit library.
 
-        Printer command: GS v 0  [mode xL xH yL yH data…]
-          mode 0 = normal density, no scaling
+        The image is processed in 24-row strips.  For each strip, the column
+        data is packed MSB-first (topmost dot = bit 7) and sent as:
+            ESC * 33 nL nH  [3 bytes per column × width]
+        with line spacing set to exactly 24 dots between strips.
         """
         if Image is None:
             logger.warning("Pillow not installed — cannot print bitmap.")
             return
 
-        # Force 1-bit, black on white
         bw = image.convert('1')
         w, h = bw.size
-
-        # Pad width to next byte boundary
-        byte_width = (w + 7) // 8
-        padded_w = byte_width * 8
-        if padded_w != w:
-            canvas = Image.new('1', (padded_w, h), 1)  # white background
-            canvas.paste(bw, (0, 0))
-            bw = canvas
-
-        # Build raster data: each row packed MSB-first, 1 = black
         pixels = bw.load()
-        raster = bytearray()
-        for y in range(h):
-            for bx in range(byte_width):
-                byte = 0
-                for bit in range(8):
-                    x = bx * 8 + bit
-                    # PIL '1' mode: 0 = black, 255 = white
+
+        if not self.ser:
+            logger.info("[PRINTER MOCK BITMAP] %dx%d px", w, h)
+            return
+
+        # Set line spacing to 24 dots so strips tile flush
+        self._wait_for_ready()
+        self.ser.write(b'\x1b\x33\x18')  # ESC 3 24
+
+        for y0 in range(0, h, 24):
+            strip_h = min(24, h - y0)
+
+            # Build column data: 3 bytes per column (24 vertical dots each)
+            col_data = bytearray()
+            for x in range(w):
+                b0 = b1 = b2 = 0
+                for row in range(strip_h):
+                    y = y0 + row
+                    # PIL '1': 0 = black (print dot), 255 = white
                     if pixels[x, y] == 0:
-                        byte |= (0x80 >> bit)
-                raster.append(byte)
+                        if row < 8:
+                            b0 |= (0x80 >> row)
+                        elif row < 16:
+                            b1 |= (0x80 >> (row - 8))
+                        else:
+                            b2 |= (0x80 >> (row - 16))
+                col_data += bytes([b0, b1, b2])
 
-        xL = byte_width & 0xFF
-        xH = (byte_width >> 8) & 0xFF
-        yL = h & 0xFF
-        yH = (h >> 8) & 0xFF
-        cmd = b'\x1d\x76\x30\x00' + bytes([xL, xH, yL, yH]) + bytes(raster)
-
-        if self.ser:
+            nL = w & 0xFF
+            nH = (w >> 8) & 0xFF
             self._wait_for_ready()
-            self.ser.write(cmd)
-            # Allow the printer time proportional to image height
-            time.sleep(0.002 * h)
-        else:
-            logger.info("[PRINTER MOCK BITMAP] %dx%d px (%d bytes)", w, h, len(raster))
+            self.ser.write(b'\x1b\x2a\x21' + bytes([nL, nH]) + bytes(col_data))
+            self.ser.write(b'\n')  # advance 24 dots
+            time.sleep(0.004 * strip_h)
+
+        # Restore default line spacing (1/6 inch)
+        self._wait_for_ready()
+        self.ser.write(b'\x1b\x32')  # ESC 2
 
     def render_label_image(
         self,
@@ -252,8 +256,8 @@ class LegacyThermalPrinter:
                     pass
             return ImageFont.load_default()
 
-        font_pn = _load_font(FONT_PATHS_BOLD, 56)    # large part-number
-        font_desc = _load_font(FONT_PATHS_NORMAL, 32) # normal description
+        font_pn = _load_font(FONT_PATHS_BOLD, 38)    # large part-number
+        font_desc = _load_font(FONT_PATHS_NORMAL, 22) # normal description
 
         # --- Measure and word-wrap description ---
         dummy = Image.new('1', (1, 1))
