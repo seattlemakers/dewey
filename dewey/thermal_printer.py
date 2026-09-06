@@ -81,6 +81,25 @@ class LegacyThermalPrinter:
                 return
             _time.sleep(0.001)
 
+    def _send_buffered(self, data: bytes, chunk_size: int = 32) -> None:
+        """Sends data in small chunks, polling DTR flow control before each chunk.
+
+        Micro thermal printer receive FIFOs are only 64-128 bytes. Sending a large
+        packet (e.g. 1,158 bytes) in a single write overruns the printer's FIFO,
+        dropping bytes and causing subsequent raw binary bitmap data to be
+        misinterpreted as random garbled ASCII characters.
+        """
+        if not self.ser:
+            return
+        has_dtr = (self.dtr_pin is not None and GPIO is not None)
+        for i in range(0, len(data), chunk_size):
+            if has_dtr:
+                self._wait_for_ready()
+            else:
+                time.sleep(chunk_size * 10.0 / self.baudrate)
+            self.ser.write(data[i:i + chunk_size])
+        self.ser.flush()
+
     def _connect(self) -> None:
         if serial is None:
             logger.warning("pyserial is not installed. Running in mock printer mode.")
@@ -226,10 +245,8 @@ class LegacyThermalPrinter:
 
             nL = w & 0xFF
             nH = (w >> 8) & 0xFF
-            self._wait_for_ready()
-            self.ser.write(b'\x1b\x2a\x21' + bytes([nL, nH]) + bytes(col_data))
-            self.ser.write(b'\n')  # advance 24 dots
-            self.ser.flush()
+            strip_packet = b'\x1b\x2a\x21' + bytes([nL, nH]) + bytes(col_data) + b'\n'
+            self._send_buffered(strip_packet, chunk_size=32)
 
         # Restore default line spacing (1/6 inch)
         self._wait_for_ready()
