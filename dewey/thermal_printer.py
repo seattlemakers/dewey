@@ -81,17 +81,6 @@ class LegacyThermalPrinter:
                 return
             _time.sleep(0.001)
 
-    def _send_buffered(self, data: bytes, chunk_size: int = 64) -> None:
-        """Sends data in chunks throttled to physical wire speed to prevent FIFO overrun."""
-        if not self.ser:
-            return
-        chunk_delay = chunk_size * 10.0 / self.baudrate
-        for i in range(0, len(data), chunk_size):
-            self._wait_for_ready()
-            self.ser.write(data[i:i + chunk_size])
-            time.sleep(chunk_delay)
-        self.ser.flush()
-
     def _connect(self) -> None:
         if serial is None:
             logger.warning("pyserial is not installed. Running in mock printer mode.")
@@ -238,10 +227,12 @@ class LegacyThermalPrinter:
             nL = w & 0xFF
             nH = (w >> 8) & 0xFF
             strip_packet = b'\x1b\x2a\x21' + bytes([nL, nH]) + bytes(col_data) + b'\n'
-            self._send_buffered(strip_packet, chunk_size=64)
-            # Essential motor-advance time: allow mechanical stepper to finish
-            # stepping 24 dots before sending the next strip's ESC * header
-            time.sleep(0.08)
+            self._wait_for_ready()
+            self.ser.write(strip_packet)
+            self.ser.flush()
+            # 120ms pause ONLY between strips: gives the printer's stepper motor
+            # time to advance 24 dots before the next strip's ESC * command header arrives
+            time.sleep(0.12)
 
         # Restore default line spacing (1/6 inch)
         self._wait_for_ready()
