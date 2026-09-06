@@ -68,12 +68,12 @@ PRINTER_DOTS_PER_LINE = int(os.getenv("DEWEY_PRINTER_DOTS_PER_LINE", "384"))
 # Keeping this around 7 (64 dots) ensures the thermal elements get concentrated power.
 PRINTER_HEAT_DOTS = int(os.getenv("DEWEY_PRINTER_HEAT_DOTS", "7"))
 # Heating time (unit: 10µs, range 3-255; factory default 80; 220-255 gives maximum burn)
-PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "220"))
+PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "80"))
 # Heating interval between dot groups (unit: 10µs, range 0-255).
 # CRITICAL: This is the COOLING pause between dot groups. If set too high (e.g. 255 = 2.55ms),
 # the printhead cools completely down between dot groups, causing faint/dim text.
 # 20-40 (200-400µs) keeps the head at optimal burning temperature.
-PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "20"))
+PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "2"))
 # Print density (0-31 where 0=50%, 10=100%, 31=205% maximum density)
 PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "15"))
 # Print break time (0-7 in units of 250µs; 2 = 500µs cooling between lines)
