@@ -159,6 +159,7 @@ class LegacyThermalPrinter:
         if self.ser:
             self._wait_for_ready()
             self.ser.write(text.encode('ascii', errors='ignore') + b'\n')
+            time.sleep(0.04)
         else:
             logger.info("[PRINTER MOCK] %s", text)
 
@@ -230,9 +231,11 @@ class LegacyThermalPrinter:
             self._wait_for_ready()
             self.ser.write(strip_packet)
             self.ser.flush()
-            # 120ms pause ONLY between strips: gives the printer's stepper motor
-            # time to advance 24 dots before the next strip's ESC * command header arrives
-            time.sleep(0.12)
+            # Inter-strip pause: burning 24 dot lines takes ~250-300ms.
+            # Without this pause, the printer's 64-byte FIFO accumulates data across
+            # strips until it overflows on strip 3-4, dropping out of bitmap mode
+            # and printing the remaining raw binary pixels as ASCII garbage.
+            time.sleep(0.35)
 
         # Restore default line spacing (1/6 inch)
         self._wait_for_ready()
@@ -403,23 +406,55 @@ class LegacyThermalPrinter:
         time.sleep(0.1)
 
     # --- HIGH LEVEL LABEL PRINTING ---
-    def print_component_label(self, part_number: str, description: str) -> None:
-        """Prints an electronic component label as a pre-rendered bitmap.
+    def print_component_label(
+        self,
+        part_number: str,
+        description: str,
+        mode: str = 'text',
+    ) -> None:
+        """Prints an electronic component label.
 
-        Text is rasterised with Pillow into a 1-bit image and sent to the printer
-        via the ESC/POS GS v 0 raster command.  This avoids all ESC/POS text-mode
-        artefacts (streaks, fading) caused by per-character heat cycling.
+        By default, uses native ESC/POS text mode ('text'). This uses the printer's
+        internal character ROM and sends ~150 bytes total, completely eliminating the
+        serial FIFO buffer overruns that cause random CP437 character explosions
+        (█ █ █, Greek symbols, ddd000000ppp) in bitmap mode.
+
+        Layout (text mode):
+          - Part number:  Large 2×, Bold, Left-aligned
+          - Separator:    Single dashed divider line
+          - Description:  Normal size, non-bold, wrapped to 32 characters
         """
-        logger.info("Printing component label (bitmap): %s", part_number)
+        logger.info("Printing component label (%s): %s", mode, part_number)
 
         # Enforce dark heating and density settings
         self.set_heat_config()
         self.set_print_density()
 
+        if mode == 'bitmap':
+            self.feed(1)
+            label_img = self.render_label_image(part_number, description)
+            self.print_bitmap(label_img)
+            self.feed(3)
+            return
+
+        # --- Native ESC/POS Text Mode (buffer-safe, fast) ---
         self.feed(1)
 
-        label_img = self.render_label_image(part_number, description)
-        self.print_bitmap(label_img)
+        # Part Number (Large 2× Width/Height, Bold)
+        self.set_justification('left')
+        self.set_bold(True)
+        self.set_size('large')
+        self.write_line(part_number)
+
+        # Reset to normal size and weight for the divider and description
+        self.set_size('normal')
+        self.set_bold(False)
+        self.write_line("-" * PRINTER_CHARS_PER_LINE)
+
+        # Description (Normal size, non-bold, word-wrapped to paper width)
+        wrapped_lines = textwrap.wrap(description, width=PRINTER_CHARS_PER_LINE)
+        for line in wrapped_lines:
+            self.write_line(line)
 
         # Clean feed for tearing
         self.feed(3)
