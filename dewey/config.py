@@ -60,6 +60,8 @@ KEYPAD_MAP = [
 PRINTER_PORT = os.getenv("DEWEY_PRINTER_PORT", "/dev/serial0")
 PRINTER_BAUDRATE = 19200
 PRINTER_CHARS_PER_LINE = 32
+# Physical paper width in printer dots (58mm paper @ 203 DPI ≈ 384 dots)
+PRINTER_DOTS_PER_LINE = int(os.getenv("DEWEY_PRINTER_DOTS_PER_LINE", "384"))
 
 # Heating & Darkness parameters (ESC 7 and DC2 # commands)
 # Max heating dots (unit: 8 dots, range 0-255, default ~7-11)

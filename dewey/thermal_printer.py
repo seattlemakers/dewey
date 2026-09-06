@@ -6,6 +6,11 @@ import time
 from typing import Optional
 
 try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = ImageDraw = ImageFont = None
+
+try:
     import serial
 except ImportError:
     serial = None
@@ -16,10 +21,13 @@ except ImportError:
     GPIO = None
 
 from dewey.config import (
+    FONT_PATHS_BOLD,
+    FONT_PATHS_NORMAL,
     PRINTER_BAUDRATE,
     PRINTER_BREAK_TIME,
     PRINTER_CHARS_PER_LINE,
     PRINTER_DENSITY,
+    PRINTER_DOTS_PER_LINE,
     PRINTER_DTR_PIN,
     PRINTER_HEAT_DOTS,
     PRINTER_HEAT_INTERVAL,
@@ -144,15 +152,10 @@ class LegacyThermalPrinter:
             logger.info("[PRINTER MOCK] set_double_strike(%s)", enabled)
 
     def write_line(self, text: str) -> None:
-        """Prints a string line encoded in ASCII/CP437 layout.
-
-        A short sleep is added after each write so the printer fully heats and
-        resets between lines, preventing faded/streaky output from buffer pressure.
-        """
+        """Prints a string line encoded in ASCII/CP437 layout."""
         if self.ser:
             self._wait_for_ready()
             self.ser.write(text.encode('ascii', errors='ignore') + b'\n')
-            time.sleep(0.05)
         else:
             logger.info("[PRINTER MOCK] %s", text)
 
@@ -164,6 +167,144 @@ class LegacyThermalPrinter:
                 self.ser.write(b'\n')
         else:
             logger.info("[PRINTER MOCK FEED %d lines]", lines)
+
+    # --- BITMAP / RASTER PRINTING ---
+
+    def print_bitmap(self, image: "Image.Image") -> None:
+        """Sends a PIL image to the printer as an ESC/POS raster bitmap (GS v 0).
+
+        The image is converted to 1-bit (black-on-white) and its width is padded
+        to a multiple of 8 bits before encoding.  Each row is sent as a packed
+        sequence of bytes, MSB first (leftmost pixel = bit 7 of byte 0).
+
+        Printer command: GS v 0  [mode xL xH yL yH data…]
+          mode 0 = normal density, no scaling
+        """
+        if Image is None:
+            logger.warning("Pillow not installed — cannot print bitmap.")
+            return
+
+        # Force 1-bit, black on white
+        bw = image.convert('1')
+        w, h = bw.size
+
+        # Pad width to next byte boundary
+        byte_width = (w + 7) // 8
+        padded_w = byte_width * 8
+        if padded_w != w:
+            canvas = Image.new('1', (padded_w, h), 1)  # white background
+            canvas.paste(bw, (0, 0))
+            bw = canvas
+
+        # Build raster data: each row packed MSB-first, 1 = black
+        pixels = bw.load()
+        raster = bytearray()
+        for y in range(h):
+            for bx in range(byte_width):
+                byte = 0
+                for bit in range(8):
+                    x = bx * 8 + bit
+                    # PIL '1' mode: 0 = black, 255 = white
+                    if pixels[x, y] == 0:
+                        byte |= (0x80 >> bit)
+                raster.append(byte)
+
+        xL = byte_width & 0xFF
+        xH = (byte_width >> 8) & 0xFF
+        yL = h & 0xFF
+        yH = (h >> 8) & 0xFF
+        cmd = b'\x1d\x76\x30\x00' + bytes([xL, xH, yL, yH]) + bytes(raster)
+
+        if self.ser:
+            self._wait_for_ready()
+            self.ser.write(cmd)
+            # Allow the printer time proportional to image height
+            time.sleep(0.002 * h)
+        else:
+            logger.info("[PRINTER MOCK BITMAP] %dx%d px (%d bytes)", w, h, len(raster))
+
+    def render_label_image(
+        self,
+        part_number: str,
+        description: str,
+        dot_width: int = PRINTER_DOTS_PER_LINE,
+    ) -> "Image.Image":
+        """Renders a component label to a 1-bit PIL Image using system fonts.
+
+        Layout:
+          - Part number:  bold, ~2× normal font size
+          - Separator line
+          - Description:  normal weight, word-wrapped
+
+        The image width is fixed to *dot_width* pixels (printer paper width).
+        """
+        if Image is None:
+            raise RuntimeError("Pillow is required for bitmap label printing.")
+
+        MARGIN = 6
+        usable_w = dot_width - 2 * MARGIN
+
+        def _load_font(paths, size):
+            for p in paths:
+                try:
+                    return ImageFont.truetype(p, size)
+                except (IOError, OSError):
+                    pass
+            return ImageFont.load_default()
+
+        font_pn = _load_font(FONT_PATHS_BOLD, 28)    # large part-number
+        font_desc = _load_font(FONT_PATHS_NORMAL, 16) # normal description
+
+        # --- Measure and word-wrap description ---
+        dummy = Image.new('1', (1, 1))
+        draw_dummy = ImageDraw.Draw(dummy)
+
+        def _wrap(text, font, max_w):
+            words = text.split()
+            lines, current = [], []
+            for word in words:
+                trial = ' '.join(current + [word])
+                bbox = draw_dummy.textbbox((0, 0), trial, font=font)
+                if bbox[2] - bbox[0] > max_w and current:
+                    lines.append(' '.join(current))
+                    current = [word]
+                else:
+                    current.append(word)
+            if current:
+                lines.append(' '.join(current))
+            return lines
+
+        desc_lines = _wrap(description, font_desc, usable_w)
+
+        def _line_h(font):
+            bbox = draw_dummy.textbbox((0, 0), 'Ag', font=font)
+            return bbox[3] - bbox[1] + 4
+
+        pn_h = _line_h(font_pn)
+        desc_h = _line_h(font_desc)
+        sep = 4  # pixels above/below separator line
+
+        total_h = (MARGIN
+                   + pn_h
+                   + sep + 1 + sep          # separator
+                   + desc_h * len(desc_lines)
+                   + MARGIN)
+
+        img = Image.new('1', (dot_width, total_h), 1)  # white
+        draw = ImageDraw.Draw(img)
+
+        y = MARGIN
+        draw.text((MARGIN, y), part_number, font=font_pn, fill=0)
+        y += pn_h + sep
+
+        draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=1)
+        y += 1 + sep
+
+        for line in desc_lines:
+            draw.text((MARGIN, y), line, font=font_desc, fill=0)
+            y += desc_h
+
+        return img
 
     # --- TEXT EFFECTS ---
     def set_bold(self, enabled: bool = True) -> None:
@@ -242,39 +383,22 @@ class LegacyThermalPrinter:
 
     # --- HIGH LEVEL LABEL PRINTING ---
     def print_component_label(self, part_number: str, description: str) -> None:
-        """Prints an electronic component label:
-        - Part number in large text at top
-        - Description in small/normal text below
-        Enforces maximum print density, heat time, bold, and double-strike for deep dark prints.
+        """Prints an electronic component label as a pre-rendered bitmap.
+
+        Text is rasterised with Pillow into a 1-bit image and sent to the printer
+        via the ESC/POS GS v 0 raster command.  This avoids all ESC/POS text-mode
+        artefacts (streaks, fading) caused by per-character heat cycling.
         """
-        logger.info("Printing component label: %s (dark mode)", part_number)
+        logger.info("Printing component label (bitmap): %s", part_number)
 
         # Enforce dark heating and density settings
         self.set_heat_config()
         self.set_print_density()
-        self.set_double_strike(True)
 
         self.feed(1)
 
-        # Part Number (Large, Left, Bold, Double Strike)
-        self.set_justification('left')
-        self.set_bold(True)
-        self.set_size('large')
-        self.write_line(part_number)
-
-        # Reset size for description, but keep bold + double strike for darkness
-        self.set_size('normal')
-        self.set_bold(True)
-        self.feed(1)
-
-        # Description (Normal / Small, Left-aligned, wrapped to 32 chars)
-        wrapped_lines = textwrap.wrap(description, width=PRINTER_CHARS_PER_LINE)
-        for line in wrapped_lines:
-            self.write_line(line)
-
-        # Reset text styling
-        self.set_bold(False)
-        self.set_double_strike(False)
+        label_img = self.render_label_image(part_number, description)
+        self.print_bitmap(label_img)
 
         # Clean feed for tearing
         self.feed(3)
