@@ -101,6 +101,9 @@ class LegacyThermalPrinter:
             self._wait_for_ready()
             self.ser.write(b'\x1b\x40')
             time.sleep(0.1)
+            # Enable DTR/ASB flow control on printer if DTR pin is configured
+            if self.dtr_pin is not None:
+                self.ser.write(b'\x1d\x61\x20')  # GS a 32 (enable ASB / DTR)
         # Apply dark heating parameters immediately after reset
         self.set_heat_config()
         self.set_print_density()
@@ -173,10 +176,10 @@ class LegacyThermalPrinter:
     def print_bitmap(self, image: "Image.Image") -> None:
         """Sends a PIL image using ESC * 24-dot double-density column mode.
 
-        GS v 0 (raster mode) is unreliable on v2.16 firmware.  ESC * (column
+        GS v 0 (raster mode) is unreliable on v2.16 firmware. ESC * (column
         bit-image mode) is the legacy-safe method used by the Adafruit library.
 
-        The image is processed in 24-row strips.  For each strip, the column
+        The image is processed in 24-row strips. For each strip, the column
         data is packed MSB-first (topmost dot = bit 7) and sent as:
             ESC * 33 nL nH  [3 bytes per column × width]
         with line spacing set to exactly 24 dots between strips.
@@ -193,9 +196,14 @@ class LegacyThermalPrinter:
             logger.info("[PRINTER MOCK BITMAP] %dx%d px", w, h)
             return
 
+        # Ensure dark heat & density settings are active before printing
+        self.set_heat_config()
+        self.set_print_density()
+
         # Set line spacing to 24 dots so strips tile flush
         self._wait_for_ready()
         self.ser.write(b'\x1b\x33\x18')  # ESC 3 24
+        self.ser.flush()
 
         for y0 in range(0, h, 24):
             strip_h = min(24, h - y0)
@@ -221,11 +229,15 @@ class LegacyThermalPrinter:
             self._wait_for_ready()
             self.ser.write(b'\x1b\x2a\x21' + bytes([nL, nH]) + bytes(col_data))
             self.ser.write(b'\n')  # advance 24 dots
-            time.sleep(0.004 * strip_h)
+            self.ser.flush()
+
+            # Pacing: ensure UART buffer empty + give printhead time to burn and step
+            time.sleep(0.012 * strip_h)
 
         # Restore default line spacing (1/6 inch)
         self._wait_for_ready()
         self.ser.write(b'\x1b\x32')  # ESC 2
+        self.ser.flush()
 
     def render_label_image(
         self,
@@ -256,7 +268,7 @@ class LegacyThermalPrinter:
                     pass
             return ImageFont.load_default()
 
-        font_pn = _load_font(FONT_PATHS_BOLD, 38)    # large part-number
+        font_pn = _load_font(FONT_PATHS_BOLD, 38)     # large part-number
         font_desc = _load_font(FONT_PATHS_NORMAL, 22) # normal description
 
         # --- Measure and word-wrap description ---
@@ -268,7 +280,7 @@ class LegacyThermalPrinter:
             lines, current = [], []
             for word in words:
                 trial = ' '.join(current + [word])
-                bbox = draw_dummy.textbbox((0, 0), trial, font=font)
+                bbox = draw_dummy.textbbox((0, 0), trial, font=font, stroke_width=1)
                 if bbox[2] - bbox[0] > max_w and current:
                     lines.append(' '.join(current))
                     current = [word]
@@ -281,7 +293,7 @@ class LegacyThermalPrinter:
         desc_lines = _wrap(description, font_desc, usable_w)
 
         def _line_h(font):
-            bbox = draw_dummy.textbbox((0, 0), 'Ag', font=font)
+            bbox = draw_dummy.textbbox((0, 0), 'Ag', font=font, stroke_width=1)
             return bbox[3] - bbox[1] + 4
 
         pn_h = _line_h(font_pn)
@@ -290,7 +302,7 @@ class LegacyThermalPrinter:
 
         total_h = (MARGIN
                    + pn_h
-                   + sep + 1 + sep          # separator
+                   + sep + 2 + sep          # separator
                    + desc_h * len(desc_lines)
                    + MARGIN)
 
@@ -298,14 +310,15 @@ class LegacyThermalPrinter:
         draw = ImageDraw.Draw(img)
 
         y = MARGIN
-        draw.text((MARGIN, y), part_number, font=font_pn, fill=0)
+        # Draw with stroke_width=1 to ensure solid, bold strokes with no faint 1-pixel hairlines
+        draw.text((MARGIN, y), part_number, font=font_pn, fill=0, stroke_width=1)
         y += pn_h + sep
 
-        draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=1)
-        y += 1 + sep
+        draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
+        y += 2 + sep
 
         for line in desc_lines:
-            draw.text((MARGIN, y), line, font=font_desc, fill=0)
+            draw.text((MARGIN, y), line, font=font_desc, fill=0, stroke_width=1)
             y += desc_h
 
         return img
