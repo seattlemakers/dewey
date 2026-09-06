@@ -30,9 +30,6 @@ printer.print_component_label(
     mode="text",
 )
 
-# Brief feed/pause between labels
-printer.feed(2)
-
 # 2. Second print: Bitmap graphics mode (Pillow-rendered system fonts)
 print("2/2: Printing component label in Bitmap mode...")
 printer.print_component_label(
