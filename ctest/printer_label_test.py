@@ -14,6 +14,8 @@ from dewey.thermal_printer import LegacyThermalPrinter
 # so no arguments are needed here.
 printer = LegacyThermalPrinter()
 
+print("Starting printer")
+
 printer.print_component_label(
     part_number="LM358P",
     description=(
