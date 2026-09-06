@@ -72,6 +72,8 @@ PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "128"))
 PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "31"))
 # Print break time (0-7 in units of 250µs)
 PRINTER_BREAK_TIME = int(os.getenv("DEWEY_PRINTER_BREAK_TIME", "3"))
+# DTR pin (BCM): printer pulls LOW when ready, HIGH when buffer is full (None to disable)
+PRINTER_DTR_PIN: int | None = int(os.getenv("DEWEY_PRINTER_DTR_PIN", "4"))
 
 # --- Gemini API ---
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")

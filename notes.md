@@ -72,7 +72,8 @@ Layout:
 - Baud rate: 19200
 - Firmware version: 2.16
 - TX: 14
-- RX: Not connected
+- RX: 15
+- DTR: 4
 
 ## Screen:
 - Driver: ILI9341
