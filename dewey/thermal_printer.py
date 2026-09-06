@@ -307,11 +307,14 @@ class LegacyThermalPrinter:
                    + line_h * len(desc_lines)
                    + MARGIN)
 
-        img = Image.new('1', (dot_width, total_h), 1)  # white
-        draw = ImageDraw.Draw(img)
+        # Render on a grayscale canvas first so TrueType anti-aliasing can render smoothly,
+        # then threshold at 190. Drawing directly on mode '1' causes Pillow to apply a hard 128
+        # cutoff that hollows out regular fonts into thin, faint 1-pixel skeletons.
+        img_gray = Image.new('L', (dot_width, total_h), 255)  # white background
+        draw = ImageDraw.Draw(img_gray)
 
         y = MARGIN
-        draw.text((MARGIN, y), part_number, font=font_pn, fill=0, stroke_width=1)
+        draw.text((MARGIN, y), part_number, font=font_pn, fill=0)
         y += pn_h + sep_gap
 
         draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
@@ -321,7 +324,9 @@ class LegacyThermalPrinter:
             draw.text((MARGIN, y), line, font=font_desc, fill=0)
             y += line_h
 
-        return img
+        # Convert to 1-bit: any pixel with >=25% ink (gray < 190) becomes solid black
+        img_1bit = img_gray.point(lambda p: 0 if p < 190 else 255, mode='1')
+        return img_1bit
 
     # --- TEXT EFFECTS ---
     def set_bold(self, enabled: bool = True) -> None:
