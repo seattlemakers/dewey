@@ -4,6 +4,8 @@ printer parameters defined in dewey/config.py."""
 import os
 import sys
 
+print("test...")
+
 # Allow importing from the project root when run directly from ctest/
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
