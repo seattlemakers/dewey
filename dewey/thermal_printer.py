@@ -231,8 +231,9 @@ class LegacyThermalPrinter:
             self.ser.write(b'\n')  # advance 24 dots
             self.ser.flush()
 
-            # Pacing: ensure UART buffer empty + give printhead time to burn and step
-            time.sleep(0.012 * strip_h)
+            # Pacing: ensure UART buffer empty + allow internal capacitors to recharge
+            # and prevent firmware thermal throttling from degrading subsequent strips
+            time.sleep(0.025 * strip_h)
 
         # Restore default line spacing (1/6 inch)
         self._wait_for_ready()
@@ -250,7 +251,7 @@ class LegacyThermalPrinter:
         Layout:
           - Part number:  bold, ~2× normal font size
           - Separator line
-          - Description:  normal weight, word-wrapped
+          - Description:  bold weight, word-wrapped
 
         The image width is fixed to *dot_width* pixels (printer paper width).
         """
@@ -268,8 +269,10 @@ class LegacyThermalPrinter:
                     pass
             return ImageFont.load_default()
 
+        # Both use BOLD font paths so all text has thick, solid glyph strokes
+        # that deposit sufficient thermal energy on thermal paper
         font_pn = _load_font(FONT_PATHS_BOLD, 38)     # large part-number
-        font_desc = _load_font(FONT_PATHS_NORMAL, 22) # normal description
+        font_desc = _load_font(FONT_PATHS_BOLD, 22)   # bold description
 
         # --- Measure and word-wrap description ---
         dummy = Image.new('1', (1, 1))
@@ -292,34 +295,33 @@ class LegacyThermalPrinter:
 
         desc_lines = _wrap(description, font_desc, usable_w)
 
-        def _line_h(font):
-            bbox = draw_dummy.textbbox((0, 0), 'Ag', font=font, stroke_width=1)
-            return bbox[3] - bbox[1] + 4
+        def _measure_text_h(text: str, font) -> int:
+            bbox = draw_dummy.textbbox((0, 0), text, font=font, stroke_width=1)
+            return bbox[3] - bbox[1]
 
-        pn_h = _line_h(font_pn)
-        desc_h = _line_h(font_desc)
-        sep = 4  # pixels above/below separator line
+        pn_h = _measure_text_h(part_number, font_pn)
+        line_h = _measure_text_h("Ag", font_desc) + 6
+        sep_gap = 6
 
         total_h = (MARGIN
                    + pn_h
-                   + sep + 2 + sep          # separator
-                   + desc_h * len(desc_lines)
+                   + sep_gap + 2 + sep_gap
+                   + line_h * len(desc_lines)
                    + MARGIN)
 
         img = Image.new('1', (dot_width, total_h), 1)  # white
         draw = ImageDraw.Draw(img)
 
         y = MARGIN
-        # Draw with stroke_width=1 to ensure solid, bold strokes with no faint 1-pixel hairlines
         draw.text((MARGIN, y), part_number, font=font_pn, fill=0, stroke_width=1)
-        y += pn_h + sep
+        y += pn_h + sep_gap
 
         draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
-        y += 2 + sep
+        y += 2 + sep_gap
 
         for line in desc_lines:
             draw.text((MARGIN, y), line, font=font_desc, fill=0, stroke_width=1)
-            y += desc_h
+            y += line_h
 
         return img
 
