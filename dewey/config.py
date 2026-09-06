@@ -75,7 +75,7 @@ PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "220"))
 # 20-40 (200-400µs) keeps the head at optimal burning temperature.
 PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "20"))
 # Print density (0-31 where 0=50%, 10=100%, 31=205% maximum density)
-PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "15"))
+PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "20"))
 # Print break time (0-7 in units of 250µs; 2 = 500µs cooling between lines)
 PRINTER_BREAK_TIME = int(os.getenv("DEWEY_PRINTER_BREAK_TIME", "2"))
 # DTR pin (BCM): printer pulls LOW when ready, HIGH when buffer is full (None to disable)
