@@ -88,9 +88,6 @@ class LegacyThermalPrinter:
 
         try:
             self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=self.timeout)
-            # Flush OS serial buffers to clear any stale bits or framing errors
-            self.ser.reset_input_buffer()
-            self.ser.reset_output_buffer()
             time.sleep(0.3)
             self.reset()
             logger.info("Thermal printer connected on %s at %d baud.", self.port, self.baudrate)
@@ -101,14 +98,12 @@ class LegacyThermalPrinter:
     def reset(self) -> None:
         """Resets printer memory settings to defaults and applies dark print parameters."""
         if self.ser:
-            self._wait_for_ready()
             self.ser.write(b'\x1b\x40')
-            # The printer microcontroller needs 350ms to cold boot and reinitialize its RAM/line buffer
-            time.sleep(0.35)
-            self.ser.reset_input_buffer()
+            self.ser.flush()
+            # The printer microcontroller needs 250ms to cold boot and reinitialize
+            time.sleep(0.25)
         # Apply dark heating parameters immediately after reset
         self.set_heat_config()
-        self.set_print_density()
 
     def set_heat_config(
         self,
@@ -159,8 +154,8 @@ class LegacyThermalPrinter:
     def write_line(self, text: str) -> None:
         """Prints a string line encoded in ASCII/CP437 layout."""
         if self.ser:
-            self._wait_for_ready()
             self.ser.write(text.encode('ascii', errors='ignore') + b'\n')
+            self.ser.flush()
             time.sleep(0.04)
         else:
             logger.info("[PRINTER MOCK] %s", text)
@@ -429,10 +424,6 @@ class LegacyThermalPrinter:
           - Description:  Normal size, non-bold, wrapped to 32 characters
         """
         logger.info("Printing component label (%s): %s", mode, part_number)
-
-        # Enforce dark heating and density settings
-        self.set_heat_config()
-        self.set_print_density()
 
         if mode == 'bitmap':
             self.feed(1)
