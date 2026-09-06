@@ -10,7 +10,16 @@ try:
 except ImportError:
     serial = None
 
-from dewey.config import PRINTER_BAUDRATE, PRINTER_CHARS_PER_LINE, PRINTER_PORT
+from dewey.config import (
+    PRINTER_BAUDRATE,
+    PRINTER_BREAK_TIME,
+    PRINTER_CHARS_PER_LINE,
+    PRINTER_DENSITY,
+    PRINTER_HEAT_DOTS,
+    PRINTER_HEAT_INTERVAL,
+    PRINTER_HEAT_TIME,
+    PRINTER_PORT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +49,56 @@ class LegacyThermalPrinter:
             self.ser = None
 
     def reset(self) -> None:
-        """Resets printer memory settings to defaults."""
+        """Resets printer memory settings to defaults and applies dark print parameters."""
         if self.ser:
             self.ser.write(b'\x1b\x40')
             time.sleep(0.1)
+        # Apply dark heating parameters immediately after reset
+        self.set_heat_config()
+        self.set_print_density()
+
+    def set_heat_config(
+        self,
+        dots: int = PRINTER_HEAT_DOTS,
+        heat_time: int = PRINTER_HEAT_TIME,
+        interval: int = PRINTER_HEAT_INTERVAL,
+    ) -> None:
+        """Sets heating control parameters (ESC 7 n1 n2 n3).
+        dots: Max heating dots fired simultaneously (0-255, in units of 8 dots).
+        heat_time: Heating duration per dot (3-255, in units of 10µs). Higher = darker.
+        interval: Recovery cooling interval between dot groups (0-255, in units of 10µs).
+        """
+        if self.ser:
+            cmd = b'\x1b\x37' + bytes([dots & 0xFF, heat_time & 0xFF, interval & 0xFF])
+            self.ser.write(cmd)
+            time.sleep(0.05)
+        else:
+            logger.info("[PRINTER MOCK] set_heat_config(dots=%d, time=%d, interval=%d)", dots, heat_time, interval)
+
+    def set_print_density(
+        self,
+        density: int = PRINTER_DENSITY,
+        break_time: int = PRINTER_BREAK_TIME,
+    ) -> None:
+        """Sets print darkness density and break time (DC2 # n).
+        density: 0-31 (0 = 50%, 10 = 100%, 31 = 205% max darkness).
+        break_time: 0-7 (in units of 250µs).
+        """
+        if self.ser:
+            val = ((break_time & 0x07) << 5) | (density & 0x1F)
+            cmd = b'\x12\x23' + bytes([val])
+            self.ser.write(cmd)
+            time.sleep(0.05)
+        else:
+            logger.info("[PRINTER MOCK] set_print_density(density=%d, break_time=%d)", density, break_time)
+
+    def set_double_strike(self, enabled: bool = True) -> None:
+        """Turns double-strike mode on or off (ESC G n) for even darker text."""
+        if self.ser:
+            val = b'\x01' if enabled else b'\x00'
+            self.ser.write(b'\x1b\x47' + val)
+        else:
+            logger.info("[PRINTER MOCK] set_double_strike(%s)", enabled)
 
     def write_line(self, text: str) -> None:
         """Prints a string line encoded in ASCII/CP437 layout."""
@@ -132,25 +187,36 @@ class LegacyThermalPrinter:
         """Prints an electronic component label:
         - Part number in large text at top
         - Description in small/normal text below
+        Enforces maximum print density, heat time, bold, and double-strike for deep dark prints.
         """
-        logger.info("Printing component label: %s", part_number)
+        logger.info("Printing component label: %s (dark mode)", part_number)
+
+        # Enforce dark heating and density settings
+        self.set_heat_config()
+        self.set_print_density()
+        self.set_double_strike(True)
+
         self.feed(1)
 
-        # Part Number (Large, Centered or Left, Bold)
+        # Part Number (Large, Left, Bold, Double Strike)
         self.set_justification('left')
         self.set_bold(True)
         self.set_size('large')
         self.write_line(part_number)
 
-        # Reset formatting
+        # Reset size for description, but keep bold + double strike for darkness
         self.set_size('normal')
-        self.set_bold(False)
+        self.set_bold(True)
         self.feed(1)
 
         # Description (Normal / Small, Left-aligned, wrapped to 32 chars)
         wrapped_lines = textwrap.wrap(description, width=PRINTER_CHARS_PER_LINE)
         for line in wrapped_lines:
             self.write_line(line)
+
+        # Reset text styling
+        self.set_bold(False)
+        self.set_double_strike(False)
 
         # Clean feed for tearing
         self.feed(3)

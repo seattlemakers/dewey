@@ -61,7 +61,20 @@ PRINTER_PORT = os.getenv("DEWEY_PRINTER_PORT", "/dev/serial0")
 PRINTER_BAUDRATE = 19200
 PRINTER_CHARS_PER_LINE = 32
 
+# Heating & Darkness parameters (ESC 7 and DC2 # commands)
+# Max heating dots (unit: 8 dots, range 0-255, default ~7-11)
+PRINTER_HEAT_DOTS = int(os.getenv("DEWEY_PRINTER_HEAT_DOTS", "11"))
+# Heating time (unit: 10µs, range 3-255; factory default was ~80; 220 gives a much darker burn)
+PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "220"))
+# Heating interval between dot groups (unit: 10µs, range 0-255, default 40)
+PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "40"))
+# Print density (0-31 where 0=50%, 10=100%, 31=205% maximum density)
+PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "31"))
+# Print break time (0-7 in units of 250µs)
+PRINTER_BREAK_TIME = int(os.getenv("DEWEY_PRINTER_BREAK_TIME", "3"))
+
 # --- Gemini API ---
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 MAX_DESCRIPTION_WORDS = 100
+
 
