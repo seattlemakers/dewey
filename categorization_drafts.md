@@ -220,9 +220,9 @@
 	- Crystal oscillators
 - RTCs
 #### Op Amps, Comparators
-	- General op-amps
-	- OTA
-	- Comparators
+- General op-amps
+- OTA
+- Comparators
 #### Filter ICs
 #### Memory
 - PSRAM
