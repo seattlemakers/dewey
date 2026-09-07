@@ -36,10 +36,10 @@ SYSTEM_INSTRUCTION = (
     "It may have printed labels, barcodes, distributor info, handwritten notes, laser etching, or SMD markings.\n"
     "Use Google Search to research the component or board on the web to determine its exact specifications, "
     "breakout board SKU / distributor part number (e.g. Adafruit, SparkFun, Pololu), current MSRP, "
-    "voltage and current ratings, communication interfaces, compatible libraries (especially Arduino and CircuitPython ones if relevant; note the language), and pin warnings.\n\n"
+    "voltage and current ratings, communication interfaces, compatible frameworks and libraries (especially Arduino and CircuitPython ones if relevant; note the languages; and if it's an SBC like Raspberry Pi, operating systems), and pin warnings.\n\n"
     "Return a strictly valid JSON object with the following fields:\n"
     "{\n"
-    '  "comp_type": "BOB", // Component classification. MUST be one of: "BOB" (Breakout board / module), "SMT" (Surface mount), "THT" (Through-hole), "PMT" (Panel mount), "OTH" (Other). Prioritize: BOB > SMT > THT > PMT > OTH.\n'
+    '  "comp_type": "BOB", // Component classification. MUST be one of: "SBC" (Single Board Computer), "MCU" (Microcontroller), "BOB" (Breakout board / module), "SMT" (Surface mount), "THT" (Through-hole), "PMT" (Panel mount), "OTH" (Other). Prioritize: SBC > MCU > BOB > SMT > THT > PMT > OTH.\n'
     '  "part_number": "FT232H", // Primary component / IC part number (e.g. FT232H, LM358, ESP32, 2N2222).\n'
     '  "mfr_part_number": "(Adafruit 2264)", // Manufacturer / distributor board SKU enclosed in parentheses if this is a breakout/assembled module, or "" if bare standard component.\n'
     '  "brief_desc": "FT232H Breakout: General Purpose USB to GPIO, SPI, I2C", // Bold summary line, strictly 64 characters maximum. Include package type if relevant.\n'
@@ -83,8 +83,14 @@ def extract_json_object(raw_text: str) -> Dict[str, Any]:
 
 
 def normalize_comp_type(val: str, default: str = "OTH") -> str:
-    """Normalizes component type according to priority: BOB > SMT > THT > PMT > OTH."""
+    """Normalizes component type according to priority: SBC > MCU > BOB > SMT > THT > PMT > OTH."""
     v = (val or "").strip().upper()
+    if v in ("SBC", "MCU", "BOB", "SMT", "THT", "PMT", "OTH"):
+        return v
+    if "SBC" in v or "SINGLE BOARD COMPUTER" in v:
+        return "SBC"
+    if "MCU" in v or "MICROCONTROLLER" in v:
+        return "MCU"
     if "BOB" in v or "BREAKOUT" in v or "MODULE" in v:
         return "BOB"
     if "SMT" in v or "SMD" in v or "SURFACE" in v:

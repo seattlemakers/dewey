@@ -4,11 +4,14 @@ Prints the complete catalog label specified in label_format.md:
   - Line 1:   Component type (BOB, double-size, bold, inverse) + Part number (FT232H, double-size, normal)
   - Line 1.5: Manufacturer part number (Adafruit 2264)
   - Line 2:   Brief description (Bold, max 64 chars / 2 lines)
+  - Divider 1
   - Line 3:   Human-readable category (Normal)
   - Line 4:   Database ID (Normal)
   - Line 5:   Location (Normal)
   - Line 6:   Price (Bold)
-  - Line 7:   100-word detailed description (Normal)
+  - Line 7:   Date printed (Normal, YYYY-MM-DD)
+  - Divider 2
+  - Line 8:   100-word detailed description (Normal)
 
 Prints ASCII text mode first, followed by Bitmap graphics mode (Pillow-rendered fonts).
 """

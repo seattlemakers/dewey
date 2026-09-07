@@ -78,7 +78,7 @@ PRINTER_DOTS_PER_LINE = int(os.getenv("DEWEY_PRINTER_DOTS_PER_LINE", "384"))
 # Parameter n1 (Byte 3 of ESC 7): Max heating dots
 #   Formula: (n1 + 1) * 8 dots fired simultaneously across 384-dot head. Range: 0-255.
 #   Default: 7 (64 dots = 1/6 width). Lower values (7-10 = 64-88 dots) limit peak current on 5V supply.
-PRINTER_HEAT_DOTS = int(os.getenv("DEWEY_PRINTER_HEAT_DOTS", "16"))  # ESC 7 -> n1: ((n1+1)*8 dots: 2 = 24 dots)
+PRINTER_HEAT_DOTS = int(os.getenv("DEWEY_PRINTER_HEAT_DOTS", "16"))  # ESC 7 -> n1: ((n1+1)*8 dots: 16 = 136 dots)
 
 # Parameter n2 (Byte 4 of ESC 7): Heating pulse duration
 #   Formula: n2 * 10 µs burn pulse duration per dot group. Range: 3-255.
