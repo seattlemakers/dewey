@@ -38,7 +38,7 @@ SYSTEM_INSTRUCTION = (
     "voltage and current ratings, communication interfaces, compatible libraries, and pin warnings.\n\n"
     "Return a strictly valid JSON object with the following fields:\n"
     "{\n"
-    '  "comp_type": "BOB", // Component classification. MUST be one of: "BOB" (Breakout board / module), "SMT" (Surface mount), "THT" (Through-hole), "PMT" (Panel mount). Prioritize: BOB > SMT > THT > PMT.\n'
+    '  "comp_type": "BOB", // Component classification. MUST be one of: "BOB" (Breakout board / module), "SMT" (Surface mount), "THT" (Through-hole), "PMT" (Panel mount), "OTH" (Other). Prioritize: BOB > SMT > THT > PMT > OTH.\n'
     '  "part_number": "FT232H", // Primary component / IC part number (e.g. FT232H, LM358, ESP32, 2N2222).\n'
     '  "mfr_part_number": "(Adafruit 2264)", // Manufacturer / distributor board SKU enclosed in parentheses if this is a breakout/assembled module, or "" if bare standard component.\n'
     '  "brief_desc": "FT232H Breakout: General Purpose USB to GPIO, SPI, I2C", // Bold summary line, strictly 64 characters maximum.\n'
@@ -81,8 +81,8 @@ def extract_json_object(raw_text: str) -> Dict[str, Any]:
     return {}
 
 
-def normalize_comp_type(val: str, default: str = "BOB") -> str:
-    """Normalizes component type according to priority: BOB > SMT > THT > PMT."""
+def normalize_comp_type(val: str, default: str = "OTH") -> str:
+    """Normalizes component type according to priority: BOB > SMT > THT > PMT > OTH."""
     v = (val or "").strip().upper()
     if "BOB" in v or "BREAKOUT" in v or "MODULE" in v:
         return "BOB"
@@ -92,6 +92,8 @@ def normalize_comp_type(val: str, default: str = "BOB") -> str:
         return "THT"
     if "PMT" in v or "PANEL" in v:
         return "PMT"
+    if "OTH" in v or "OTHER" in v:
+        return "OTH"
     return default
 
 
@@ -161,8 +163,8 @@ class GeminiComponentIdentifier:
 
         image_part = types.Part.from_bytes(data=jpeg_bytes, mime_type="image/jpeg")
         prompt = (
-            "Examine this electronic component. Search the web for its specifications and pricing. "
-            "Output the catalog JSON object with comp_type, part_number, mfr_part_number, "
+            "Examine this electronic component. Output the catalog JSON object with "
+            "comp_type (BOB, SMT, THT, PMT, or OTH), part_number, mfr_part_number, "
             "brief_desc, price, and 100-word description."
         )
 
@@ -246,7 +248,7 @@ class GeminiComponentIdentifier:
         parsed = extract_json_object(raw_text)
 
         # Deduce fields from Gemini JSON
-        comp_type = normalize_comp_type(parsed.get("comp_type", "BOB"))
+        comp_type = normalize_comp_type(parsed.get("comp_type", "OTH"))
         part_number = str(parsed.get("part_number", "UNKNOWN_PART")).strip()
         mfr_part_number = normalize_mfr_pn(parsed.get("mfr_part_number"))
 

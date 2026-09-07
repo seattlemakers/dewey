@@ -9,6 +9,7 @@ https://www.adafruit.com/product/2264
 - SMT *(Surface mount)*
 - THT *(Through-hole)*
 - PMT *(Panel mount)*
+- OTH *(other)*
 
 **`BOB`**
 
