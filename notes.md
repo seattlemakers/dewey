@@ -47,7 +47,7 @@ Layout:
 |--|--|--|
 | F1 | Up | `up` |
 | F2 | Down | `down` |
-| F3 | Backspace | `bsp` |
+| F3 | Period | `dot` |
 | F4 | Escape | `esc` |
 | CLR | Clear | `clr` |
 | ENT | Enter | `ent` |

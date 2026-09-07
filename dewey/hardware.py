@@ -14,7 +14,9 @@ except ImportError:
 from dewey.config import (
     KEYPAD_COLS,
     KEYPAD_MAP,
+    KEYPAD_MULTITAP,
     KEYPAD_ROWS,
+    MULTITAP_TIMEOUT,
     PIN_PRINT_SWITCH,
     PIN_SCAN_SWITCH,
 )
@@ -174,3 +176,70 @@ class HardwareManager:
                 pass
         self.keypad.close()
         logger.info("Hardware devices closed cleanly.")
+
+
+class MultiTapInput:
+    """Manages text and numeric entry on a 4x4 matrix keypad with multi-tap support."""
+
+    def __init__(self, keymap: dict = KEYPAD_MULTITAP, timeout: float = MULTITAP_TIMEOUT):
+        self.keymap = keymap
+        self.timeout = timeout
+        self.buffer = ""
+        self.last_key: Optional[str] = None
+        self.last_press_time: float = 0.0
+        self.cycle_idx: int = 0
+
+    def reset(self, initial_text: str = "") -> None:
+        """Resets the input buffer to the given initial text."""
+        self.buffer = initial_text
+        self.last_key = None
+        self.last_press_time = 0.0
+        self.cycle_idx = 0
+
+    def clear(self) -> None:
+        """Clears the current buffer completely."""
+        self.buffer = ""
+        self.last_key = None
+        self.last_press_time = 0.0
+        self.cycle_idx = 0
+
+    def handle_key(self, key: str) -> str:
+        """Processes a single keypad key press ('0'-'9', 'F3', 'CLR').
+        Returns the updated buffer string.
+        """
+        now = time.time()
+
+        if key == "CLR":
+            self.clear()
+            return self.buffer
+
+        if key in ("F3", "."):
+            # Period key: commit pending multi-tap cycle and append '.'
+            self.last_key = None
+            self.buffer += "."
+            return self.buffer
+
+        if key in self.keymap:
+            cycle = self.keymap[key]
+            if self.last_key == key and (now - self.last_press_time) < self.timeout:
+                # Cycle character in-place at the current position
+                self.cycle_idx = (self.cycle_idx + 1) % len(cycle)
+                if self.buffer:
+                    self.buffer = self.buffer[:-1] + cycle[self.cycle_idx]
+                else:
+                    self.buffer = cycle[self.cycle_idx]
+            else:
+                # Append first character of the new key cycle (the digit itself)
+                self.last_key = key
+                self.cycle_idx = 0
+                self.buffer += cycle[0]
+
+            self.last_press_time = now
+            return self.buffer
+
+        return self.buffer
+
+    def get_text(self) -> str:
+        """Returns the current buffered text."""
+        return self.buffer
+

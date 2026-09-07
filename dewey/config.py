@@ -18,18 +18,24 @@ COLOR_BG = (0, 0, 0)             # Pure Black
 COLOR_TEXT = (255, 140, 0)        # Bright Orange
 COLOR_DIM_TEXT = (200, 100, 0)    # Subdued Orange for hints/borders
 
-# Font paths with fallbacks
+# Font paths with fallbacks (Monospace fonts for aliased / printer aesthetic)
 FONT_PATHS_BOLD = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf",
+    "/System/Library/Fonts/Monaco.dfont",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
 ]
 FONT_PATHS_NORMAL = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
+    "/System/Library/Fonts/Monaco.dfont",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
 ]
 
-FONT_SIZE_LARGE = 22
-FONT_SIZE_NORMAL = 13
+FONT_SIZE_LARGE = 18
+FONT_SIZE_NORMAL = 12
 FONT_SIZE_SMALL = 10
 
 # --- Camera ---
@@ -132,9 +138,42 @@ DEFAULT_LABEL_LOCATION = os.getenv(
 )
 PRINTER_LABEL_MODE = os.getenv("DEWEY_PRINTER_LABEL_MODE", "text")
 
+# --- Editable Field Preset Options ---
+COMP_TYPE_OPTIONS = [
+    "BOB", "SMT", "THT", "PMT", "SBC", "MCU", "DEV", "WIR", "CNS", "OTH"
+]
+
+LOCATION_OPTIONS = [
+    "Location: Beige Cart, drawer 7",
+    "Location: Beige Cart, drawer 1",
+    "Location: Beige Cart, drawer 2",
+    "Location: Beige Cart, drawer 3",
+    "Location: Black Cart, drawer 1",
+    "Location: Black Cart, drawer 2",
+    "Location: South Wall, row 1, col 1",
+    "Location: North Wall, row 1, col 1",
+    "Location: Toolbox: General",
+]
+
+# --- Keypad Multi-Tap Character Map (notes.md) ---
+KEYPAD_MULTITAP = {
+    "0": ["0", " "],
+    "1": ["1", "Q", "Z"],
+    "2": ["2", "A", "B", "C"],
+    "3": ["3", "D", "E", "F"],
+    "4": ["4", "G", "H", "I"],
+    "5": ["5", "J", "K", "L"],
+    "6": ["6", "M", "N", "O"],
+    "7": ["7", "P", "R", "S"],
+    "8": ["8", "T", "U", "V"],
+    "9": ["9", "W", "X", "Y"],
+}
+MULTITAP_TIMEOUT = 0.5  # Seconds to commit multi-tap character before advancing
+
 # --- Network Keepalive ---
 # Periodic background ping to prevent SSH timeouts and WiFi power-save dropouts
 PING_HOST = os.getenv("DEWEY_PING_HOST", "google.com")
 PING_INTERVAL = int(os.getenv("DEWEY_PING_INTERVAL", "300"))  # Seconds (300s = 5 minutes)
+
 
 

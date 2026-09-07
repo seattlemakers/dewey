@@ -108,6 +108,7 @@ class DisplayManager:
         """Displays an intermediate status/progress screen (e.g. Scanning/Analyzing)."""
         canvas = Image.new("RGB", (self.width, self.height), COLOR_BG)
         draw = ImageDraw.Draw(canvas)
+        draw.fontmode = "1"  # Monospace aliased printer aesthetic
 
         # Title (Large Orange text, centered)
         bbox = draw.textbbox((0, 0), title, font=self.font_large)
@@ -135,6 +136,111 @@ class DisplayManager:
         draw.rectangle((6, 6, self.width - 7, self.height - 7), outline=COLOR_DIM_TEXT, width=1)
         self._present(canvas)
 
+    def show_label_editor(
+        self,
+        fields: List[dict],
+        selected_idx: int,
+        is_editing: bool,
+        edit_buffer: str = "",
+        cursor_visible: bool = True,
+    ) -> None:
+        """Renders interactive label editor with monospace aliased typography:
+        - Lists all editable label fields
+        - Highlights currently focused field (inverted bar in browse mode)
+        - Shows inline edit controls (arrows for options, blinking cursor for text)
+        - Dynamic bottom status line displaying available keypad actions
+        """
+        canvas = Image.new("RGB", (self.width, self.height), COLOR_BG)
+        draw = ImageDraw.Draw(canvas)
+        draw.fontmode = "1"  # Pure aliased 1-bit text rendering (printer style)
+
+        margin_x = 8
+        cur_y = 5
+
+        # --- Top Header ---
+        header_title = "[EDITING LABEL]" if is_editing else "[LABEL PREVIEW / EDIT]"
+        draw.text((margin_x, cur_y), header_title, font=self.font_large, fill=COLOR_TEXT)
+
+        # Action indicator on top right
+        status_hint = "[PRINT] Print" if not is_editing else "[ENT] Save"
+        bbox_hint = draw.textbbox((0, 0), status_hint, font=self.font_small)
+        hint_w = bbox_hint[2] - bbox_hint[0]
+        draw.text((self.width - margin_x - hint_w, cur_y + 3), status_hint, font=self.font_small, fill=COLOR_DIM_TEXT)
+
+        cur_y += 20
+        draw.line([(margin_x, cur_y), (self.width - margin_x, cur_y)], fill=COLOR_DIM_TEXT, width=1)
+        cur_y += 4
+
+        # --- Fields List ---
+        row_height = 18
+        max_visible_rows = 8
+
+        scroll_offset = 0
+        if len(fields) > max_visible_rows:
+            if selected_idx >= max_visible_rows:
+                scroll_offset = selected_idx - max_visible_rows + 1
+
+        visible_fields = fields[scroll_offset : scroll_offset + max_visible_rows]
+
+        for i, field in enumerate(visible_fields):
+            actual_idx = scroll_offset + i
+            is_selected = (actual_idx == selected_idx)
+            y_pos = cur_y + i * row_height
+
+            label_str = f"{field['label']:<8}"
+
+            if is_selected and is_editing:
+                if field.get("type") == "choice":
+                    val_str = f"◀ {field['val']} ▶"
+                else:
+                    cursor = "_" if cursor_visible else " "
+                    val_str = f"{edit_buffer}{cursor}"
+            else:
+                val_str = str(field.get("val", ""))
+
+            # Truncate value if it exceeds available display width (~33 monospace chars)
+            max_val_chars = 33
+            if len(val_str) > max_val_chars:
+                val_str = val_str[:max_val_chars - 2] + ".."
+
+            line_text = f"{label_str} {val_str}"
+
+            if is_selected:
+                if is_editing:
+                    # Draw outlined box for active edit field
+                    draw.rectangle(
+                        [(margin_x - 2, y_pos - 1), (self.width - margin_x + 2, y_pos + row_height - 3)],
+                        outline=COLOR_TEXT,
+                        width=1,
+                    )
+                    draw.text((margin_x, y_pos), line_text, font=self.font_normal, fill=COLOR_TEXT)
+                else:
+                    # Browse mode: full inverted orange block with black text
+                    draw.rectangle(
+                        [(margin_x - 2, y_pos - 1), (self.width - margin_x + 2, y_pos + row_height - 3)],
+                        fill=COLOR_TEXT,
+                    )
+                    draw.text((margin_x, y_pos), line_text, font=self.font_normal, fill=COLOR_BG)
+            else:
+                draw.text((margin_x, y_pos), line_text, font=self.font_normal, fill=COLOR_TEXT)
+
+        # --- Footer: Context-sensitive key instructions ---
+        footer_y = self.height - 18
+        draw.line([(margin_x, footer_y - 3), (self.width - margin_x, footer_y - 3)], fill=COLOR_DIM_TEXT, width=1)
+
+        if is_editing:
+            cur_field = fields[selected_idx] if 0 <= selected_idx < len(fields) else {}
+            if cur_field.get("type") == "choice":
+                footer_text = "F1/F2:Cycle  ENT:Save  CLR:Reset  F4:Cancel"
+            else:
+                footer_text = "0-9:Type  F3:.  CLR:Clear  ENT:Save  F4:Cancel"
+        else:
+            footer_text = "F1/F2:Move  ENT:Edit  PRINT:Print  F4:Camera"
+
+        draw.text((margin_x, footer_y), footer_text, font=self.font_small, fill=COLOR_DIM_TEXT)
+
+        self._present(canvas)
+
     def show_component_result(
         self,
         part_number: str,
@@ -153,6 +259,7 @@ class DisplayManager:
         """
         canvas = Image.new("RGB", (self.width, self.height), COLOR_BG)
         draw = ImageDraw.Draw(canvas)
+        draw.fontmode = "1"  # Monospace aliased printer aesthetic
 
         margin_x = 10
         cur_y = 8
@@ -229,6 +336,7 @@ class DisplayManager:
         """Renders an error screen with recovery hint."""
         canvas = Image.new("RGB", (self.width, self.height), COLOR_BG)
         draw = ImageDraw.Draw(canvas)
+        draw.fontmode = "1"  # Monospace aliased printer aesthetic
 
         draw.text((12, 20), f"ERROR: {title}", font=self.font_large, fill=COLOR_TEXT)
         draw.line([(12, 50), (self.width - 12, 50)], fill=COLOR_DIM_TEXT, width=1)

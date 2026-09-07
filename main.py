@@ -15,10 +15,15 @@ import time
 from enum import Enum, auto
 
 from dewey.camera import CameraManager
-from dewey.config import PING_HOST, PING_INTERVAL
+from dewey.config import (
+    COMP_TYPE_OPTIONS,
+    LOCATION_OPTIONS,
+    PING_HOST,
+    PING_INTERVAL,
+)
 from dewey.display import DisplayManager
 from dewey.gemini_service import GeminiComponentIdentifier
-from dewey.hardware import HardwareManager
+from dewey.hardware import HardwareManager, MultiTapInput
 from dewey.thermal_printer import LegacyThermalPrinter
 
 logging.basicConfig(
@@ -166,40 +171,203 @@ class DeweyApp:
             self.state = SystemState.ERROR
 
     def _handle_result_state(self) -> None:
-        """Display Result state: shows component info, listens for Print, Rescan, or F4."""
-        # Render the result screen with badge, brief description, and price
-        self.display.show_component_result(
-            part_number=self.current_part_number,
-            description=self.current_description,
-            comp_type=self.current_label_data.get("comp_type", ""),
-            mfr_part_number=self.current_label_data.get("mfr_part_number", ""),
-            brief_desc=self.current_label_data.get("brief_desc", ""),
-            price=self.current_label_data.get("price", ""),
-        )
+        """Display Result & Interactive Label Editor state.
 
-        # Wait for user input
+        Controls:
+          - Browse mode (is_editing=False):
+              F1 / F2: Move cursor up / down between fields
+              ENT: Enter edit mode on selected field
+              PRINT switch: Print label with current edited values
+              SCAN switch: Rescan new image
+              F4: Exit to live camera view
+          - Edit mode (is_editing=True):
+              Option fields (comp_type, location): F1 / F2 cycles options; CLR resets
+              Text/Numeric fields: 0-9 enters numbers/multi-tap; F3 enters period '.'; CLR clears
+              ENT: Save changes and return to browse mode
+              F4: Cancel edit and return to browse mode
+        """
+        comp_type_opts = list(COMP_TYPE_OPTIONS)
+        current_type = self.current_label_data.get("comp_type", "BOB")
+        if current_type not in comp_type_opts:
+            comp_type_opts.insert(0, current_type)
+
+        loc_opts = list(LOCATION_OPTIONS)
+        current_loc = self.current_label_data.get("location", "Location: Beige Cart, drawer 7")
+        if current_loc not in loc_opts:
+            loc_opts.insert(0, current_loc)
+
+        editable_fields = [
+            {
+                "key": "comp_type",
+                "label": "TYPE",
+                "type": "choice",
+                "options": comp_type_opts,
+                "val": current_type,
+            },
+            {
+                "key": "part_number",
+                "label": "PART #",
+                "type": "text",
+                "val": self.current_label_data.get("part_number", self.current_part_number),
+            },
+            {
+                "key": "mfr_part_number",
+                "label": "MFR SKU",
+                "type": "text",
+                "val": self.current_label_data.get("mfr_part_number", ""),
+            },
+            {
+                "key": "decimal_pn",
+                "label": "DB ID",
+                "type": "text",
+                "val": self.current_label_data.get("decimal_pn", "15.45.35.15"),
+            },
+            {
+                "key": "location",
+                "label": "LOC",
+                "type": "choice",
+                "options": loc_opts,
+                "val": current_loc,
+            },
+            {
+                "key": "price",
+                "label": "PRICE",
+                "type": "text",
+                "val": self.current_label_data.get("price", ""),
+            },
+            {
+                "key": "brief_desc",
+                "label": "BRIEF",
+                "type": "text",
+                "val": self.current_label_data.get("brief_desc", ""),
+            },
+            {
+                "key": "category",
+                "label": "CAT",
+                "type": "text",
+                "val": self.current_label_data.get("category", ""),
+            },
+        ]
+
+        selected_idx = 0
+        is_editing = False
+        input_mgr = MultiTapInput()
+        needs_redraw = True
+        last_blink_time = time.time()
+        cursor_visible = True
+
         while self.running and self.state == SystemState.DISPLAY_RESULT:
-            # 1. Print button pressed (White switch, Pin 6)
+            # 1. Print button (White switch, Pin 6) -> print label with current edits
             if self.hardware.is_print_pressed():
-                logger.info("Print button pressed. Sending catalog label to thermal printer.")
-                if self.current_label_data:
-                    self.printer.print_catalog_label(**self.current_label_data)
-                else:
-                    self.printer.print_component_label(self.current_part_number, self.current_description)
+                logger.info("Print button pressed. Sending edited catalog label to thermal printer.")
+                for f in editable_fields:
+                    self.current_label_data[f["key"]] = f["val"]
+                self.current_part_number = self.current_label_data.get("part_number", self.current_part_number)
+                self.printer.print_catalog_label(**self.current_label_data)
 
-            # 2. Scan button pressed again (Red switch, Pin 5) -> repeat scan
+            # 2. Scan button (Red switch, Pin 5) -> repeat scan
             if self.hardware.is_scan_pressed():
-                logger.info("Scan button pressed again. Repeating scan.")
+                logger.info("Scan button pressed. Repeating scan.")
                 self.state = SystemState.SCANNING
                 break
 
-            # 3. F4 pressed on keypad -> return to idle camera view
-            if self.hardware.is_f4_pressed():
-                logger.info("F4 pressed on keypad. Returning to IDLE live view.")
-                self.state = SystemState.IDLE
-                break
+            # 3. Read Keypad event
+            key = self.hardware.read_keypad()
 
-            time.sleep(0.03)
+            if key:
+                cur_field = editable_fields[selected_idx]
+
+                if not is_editing:
+                    # --- BROWSE MODE ---
+                    if key == "F1":
+                        # Move selection UP
+                        selected_idx = (selected_idx - 1) % len(editable_fields)
+                        needs_redraw = True
+                    elif key == "F2":
+                        # Move selection DOWN
+                        selected_idx = (selected_idx + 1) % len(editable_fields)
+                        needs_redraw = True
+                    elif key == "ENT":
+                        # Enter EDIT mode on currently focused field
+                        is_editing = True
+                        if cur_field["type"] == "text":
+                            input_mgr.reset(cur_field["val"])
+                        needs_redraw = True
+                    elif key == "F4":
+                        # Exit to camera view
+                        logger.info("F4 pressed. Returning to IDLE camera view.")
+                        self.state = SystemState.IDLE
+                        break
+                else:
+                    # --- EDIT MODE ---
+                    if cur_field["type"] == "choice":
+                        opts = cur_field["options"]
+                        cur_val = cur_field["val"]
+                        cur_opt_idx = opts.index(cur_val) if cur_val in opts else 0
+
+                        if key == "F1":
+                            # Cycle UP/backward through options
+                            cur_field["val"] = opts[(cur_opt_idx - 1) % len(opts)]
+                            self.current_label_data[cur_field["key"]] = cur_field["val"]
+                            needs_redraw = True
+                        elif key == "F2":
+                            # Cycle DOWN/forward through options
+                            cur_field["val"] = opts[(cur_opt_idx + 1) % len(opts)]
+                            self.current_label_data[cur_field["key"]] = cur_field["val"]
+                            needs_redraw = True
+                        elif key == "ENT":
+                            # Save option selection and exit edit mode
+                            is_editing = False
+                            self.current_label_data[cur_field["key"]] = cur_field["val"]
+                            needs_redraw = True
+                        elif key == "CLR":
+                            # Reset to first option in list
+                            cur_field["val"] = opts[0]
+                            self.current_label_data[cur_field["key"]] = cur_field["val"]
+                            needs_redraw = True
+                        elif key == "F4":
+                            # Cancel edit and exit to browse mode
+                            is_editing = False
+                            needs_redraw = True
+                    else:
+                        # Text / Numeric entry
+                        if key in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3", "CLR"):
+                            input_mgr.handle_key(key)
+                            needs_redraw = True
+                        elif key == "ENT":
+                            # Commit typed value and exit edit mode
+                            cur_field["val"] = input_mgr.get_text()
+                            self.current_label_data[cur_field["key"]] = cur_field["val"]
+                            if cur_field["key"] == "part_number":
+                                self.current_part_number = cur_field["val"]
+                            is_editing = False
+                            needs_redraw = True
+                        elif key == "F4":
+                            # Cancel edit without saving
+                            is_editing = False
+                            needs_redraw = True
+
+            # 4. Handle cursor blink for text editing fields
+            now = time.time()
+            if is_editing and editable_fields[selected_idx]["type"] == "text":
+                if now - last_blink_time >= 0.4:
+                    cursor_visible = not cursor_visible
+                    last_blink_time = now
+                    needs_redraw = True
+
+            # 5. Redraw LCD screen if state changed
+            if needs_redraw:
+                edit_buf = input_mgr.get_text() if (is_editing and editable_fields[selected_idx]["type"] == "text") else ""
+                self.display.show_label_editor(
+                    fields=editable_fields,
+                    selected_idx=selected_idx,
+                    is_editing=is_editing,
+                    edit_buffer=edit_buf,
+                    cursor_visible=cursor_visible,
+                )
+                needs_redraw = False
+
+            time.sleep(0.02)
 
     def _handle_error_state(self) -> None:
         """Error state: displays error details, waits for F4 or Rescan."""
