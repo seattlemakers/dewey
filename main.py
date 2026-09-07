@@ -677,7 +677,7 @@ class DeweyApp:
                 )
                 needs_redraw = False
 
-            time.sleep(0.005)
+            time.sleep(0.02)
 
     def _handle_error_state(self) -> None:
         """Error state: displays error details, waits for F4 or Rescan."""

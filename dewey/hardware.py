@@ -12,9 +12,7 @@ except ImportError:
     DigitalOutputDevice = None
 
 from dewey.config import (
-    BUTTON_BOUNCE_TIME,
     KEYPAD_COLS,
-    KEYPAD_DEBOUNCE_TIME,
     KEYPAD_MAP,
     KEYPAD_MULTITAP,
     KEYPAD_ROWS,
@@ -75,7 +73,7 @@ class Keypad4x4:
         if current_key == self.last_key_pressed:
             return None
 
-        time.sleep(KEYPAD_DEBOUNCE_TIME)  # Debounce delay (5ms, 1/4 of original 20ms)
+        time.sleep(0.02)  # Debounce delay
         confirm_key = self.scan_matrix()
         if confirm_key == current_key:
             self.last_key_pressed = current_key
@@ -122,8 +120,8 @@ class HardwareManager:
 
         try:
             # Buttons connect to GND; pull_up=True detects press when pin goes LOW
-            self.btn_scan = Button(PIN_SCAN_SWITCH, pull_up=True, bounce_time=BUTTON_BOUNCE_TIME)
-            self.btn_print = Button(PIN_PRINT_SWITCH, pull_up=True, bounce_time=BUTTON_BOUNCE_TIME)
+            self.btn_scan = Button(PIN_SCAN_SWITCH, pull_up=True, bounce_time=0.08)
+            self.btn_print = Button(PIN_PRINT_SWITCH, pull_up=True, bounce_time=0.08)
 
             # Allow internal pull-ups to electrically settle, then sync initial state
             time.sleep(0.05)

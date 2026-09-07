@@ -61,10 +61,6 @@ KEYPAD_MAP = [
     ['F1', '1',   '2', '3']
 ]
 
-# Debounce settings (reduced to 1/4 of original values to support fast typing)
-KEYPAD_DEBOUNCE_TIME = 0.005  # 5ms (was 20ms)
-BUTTON_BOUNCE_TIME = 0.02     # 20ms (was 80ms)
-
 # --- Thermal Printer ---
 # ESC/POS legacy driver (v2.16 firmware, 19200 baud, TX only on GPIO 14)
 PRINTER_PORT = os.getenv("DEWEY_PRINTER_PORT", "/dev/serial0")
