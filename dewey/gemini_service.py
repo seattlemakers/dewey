@@ -166,11 +166,13 @@ class GeminiComponentIdentifier:
             "brief_desc, price, and 100-word description."
         )
 
-        # Check if search grounding is requested or disabled via environment
-        enable_search_env = os.getenv("DEWEY_ENABLE_SEARCH", "auto").lower()
-        use_search = enable_search_env not in ("0", "false", "no", "disable")
+        # Google Search grounding triggers Automatic Function Calling (AFC) and requires
+        # a paid billing account on Google AI Studio (otherwise returns 429 RESOURCE_EXHAUSTED).
+        # Disabled by default; enable via DEWEY_ENABLE_SEARCH=true if billing is configured.
+        enable_search_env = os.getenv("DEWEY_ENABLE_SEARCH", "false").lower()
+        use_search = enable_search_env in ("1", "true", "yes", "enable")
 
-        # Build tools list with Google Search grounding if enabled
+        # Build tools list with Google Search grounding if explicitly enabled
         tools = []
         if use_search:
             try:
@@ -180,9 +182,9 @@ class GeminiComponentIdentifier:
                 logger.warning("Could not initialize GoogleSearch tool (%s); proceeding without search.", err)
                 use_search = False
 
-        # Candidate models for automatic fallback
+        # Candidate models for automatic fallback (gemini-3.6-flash is the primary GA model)
         candidate_models = [self.model]
-        for fallback in ["gemini-2.5-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"]:
+        for fallback in ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"]:
             if fallback not in candidate_models:
                 candidate_models.append(fallback)
 
@@ -190,15 +192,23 @@ class GeminiComponentIdentifier:
         last_err = None
 
         for candidate in candidate_models:
-            # 1. Attempt with Google Search grounding if enabled
-            if use_search and tools:
+            # Attempt query on candidate model (with up to 2 retries for transient 503 errors)
+            for attempt in range(2):
                 try:
-                    logger.info("Querying Gemini (%s) with Google Search grounding...", candidate)
-                    config = types.GenerateContentConfig(
-                        system_instruction=SYSTEM_INSTRUCTION,
-                        tools=tools,
-                        temperature=0.2,
-                    )
+                    if use_search and tools:
+                        logger.info("Querying Gemini (%s) with web search grounding...", candidate)
+                        config = types.GenerateContentConfig(
+                            system_instruction=SYSTEM_INSTRUCTION,
+                            tools=tools,
+                            temperature=0.2,
+                        )
+                    else:
+                        logger.info("Querying Gemini (%s) using direct vision...", candidate)
+                        config = types.GenerateContentConfig(
+                            system_instruction=SYSTEM_INSTRUCTION,
+                            temperature=0.2,
+                        )
+
                     response = self.client.models.generate_content(
                         model=candidate,
                         contents=[image_part, prompt],
@@ -209,30 +219,25 @@ class GeminiComponentIdentifier:
                     break
                 except Exception as err:
                     last_err = err
-                    logger.warning("Search-grounded query failed on '%s' (%s). Falling back to direct vision analysis...",
-                                   candidate, err)
-                    # Once search fails (e.g. 429 quota exceeded on free tier), disable search for subsequent attempts
-                    use_search = False
+                    err_str = str(err)
+                    # If 503 high demand spike, brief pause and retry
+                    if "503" in err_str or "UNAVAILABLE" in err_str:
+                        logger.warning("Gemini model '%s' temporarily busy (503). Retrying in 1s (attempt %d/2)...",
+                                       candidate, attempt + 1)
+                        import time as _time
+                        _time.sleep(1.0)
+                        continue
+                    # If search grounding failed (e.g. 429 quota exceeded), retry candidate immediately without search
+                    if use_search:
+                        logger.warning("Search tool failed on '%s' (%s). Retrying with direct vision...",
+                                       candidate, err)
+                        use_search = False
+                        continue
+                    logger.warning("Gemini query failed on '%s': %s", candidate, err)
+                    break
 
-            # 2. Direct vision analysis without search tool
-            try:
-                logger.info("Querying Gemini (%s) using direct vision...", candidate)
-                config_notools = types.GenerateContentConfig(
-                    system_instruction=SYSTEM_INSTRUCTION,
-                    temperature=0.2,
-                )
-                response = self.client.models.generate_content(
-                    model=candidate,
-                    contents=[image_part, prompt],
-                    config=config_notools,
-                )
-                if candidate != self.model:
-                    self.model = candidate
+            if response is not None:
                 break
-            except Exception as err:
-                last_err = err
-                logger.warning("Gemini query failed on '%s': %s", candidate, err)
-                continue
 
         if response is None and last_err is not None:
             raise last_err

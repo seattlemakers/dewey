@@ -114,7 +114,7 @@ PRINTER_BREAK_TIME = int(os.getenv("DEWEY_PRINTER_BREAK_TIME", "2"))  # DC2 # ->
 PRINTER_DTR_PIN: int | None = None
 
 # --- Gemini API ---
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 MAX_DESCRIPTION_WORDS = 100
 
 # --- Default Catalog Label Metadata (Example text placeholders) ---
