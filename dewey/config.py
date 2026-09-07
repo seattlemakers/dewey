@@ -83,7 +83,7 @@ PRINTER_HEAT_DOTS = int(os.getenv("DEWEY_PRINTER_HEAT_DOTS", "10"))  # ESC 7 com
 # Parameter n2 (Byte 4 of ESC 7): Heating pulse duration
 #   Formula: n2 * 10 µs burn pulse duration per dot group. Range: 3-255.
 #   Default: 80 (800 µs). Higher values = darker print, but increases line print time.
-PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "80"))  # ESC 7 command -> parameter n2 (heating time: 80 = 800 µs)
+PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "255"))  # ESC 7 command -> parameter n2 (heating time: 80 = 800 µs)
 
 # Parameter n3 (Byte 5 of ESC 7): Heating recovery interval
 #   Formula: n3 * 10 µs pause between dot groups on each line. Range: 0-255.
