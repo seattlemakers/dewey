@@ -102,8 +102,9 @@ class LegacyThermalPrinter:
             self.ser.flush()
             # The printer microcontroller needs 250ms to cold boot and reinitialize
             time.sleep(0.25)
-        # Apply dark heating parameters immediately after reset
+        # Apply dark heating parameters and density immediately after reset
         self.set_heat_config()
+        self.set_print_density()
 
     def set_heat_config(
         self,
@@ -116,10 +117,13 @@ class LegacyThermalPrinter:
         heat_time: Heating duration per dot (3-255, in units of 10µs). Higher = darker.
         interval: Recovery cooling interval between dot groups (0-255, in units of 10µs).
         """
+        logger.info("[PRINTER] ESC 7 applied: dots=%d ((n1+1)*8=%d), heat_time=%d (%dµs), interval=%d (%dµs)",
+                    dots, (dots + 1) * 8, heat_time, heat_time * 10, interval, interval * 10)
         if self.ser:
             cmd = b'\x1b\x37' + bytes([dots & 0xFF, heat_time & 0xFF, interval & 0xFF])
             self._wait_for_ready()
             self.ser.write(cmd)
+            self.ser.flush()
             time.sleep(0.05)
         else:
             logger.info("[PRINTER MOCK] set_heat_config(dots=%d, time=%d, interval=%d)", dots, heat_time, interval)
@@ -133,11 +137,14 @@ class LegacyThermalPrinter:
         density: 0-31 (0 = 50%, 10 = 100%, 31 = 205% max darkness).
         break_time: 0-7 (in units of 250µs).
         """
+        val = ((break_time & 0x07) << 5) | (density & 0x1F)
+        logger.info("[PRINTER] DC2 # applied: density=%d (%d%%), break_time=%d (%dµs), raw=0x%02X",
+                    density, 50 + 5 * density, break_time, break_time * 250, val)
         if self.ser:
-            val = ((break_time & 0x07) << 5) | (density & 0x1F)
             cmd = b'\x12\x23' + bytes([val])
             self._wait_for_ready()
             self.ser.write(cmd)
+            self.ser.flush()
             time.sleep(0.05)
         else:
             logger.info("[PRINTER MOCK] set_print_density(density=%d, break_time=%d)", density, break_time)

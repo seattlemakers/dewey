@@ -78,18 +78,18 @@ PRINTER_DOTS_PER_LINE = int(os.getenv("DEWEY_PRINTER_DOTS_PER_LINE", "384"))
 # Parameter n1 (Byte 3 of ESC 7): Max heating dots
 #   Formula: (n1 + 1) * 8 dots fired simultaneously across 384-dot head. Range: 0-255.
 #   Default: 7 (64 dots = 1/6 width). Lower values (7-10 = 64-88 dots) limit peak current on 5V supply.
-PRINTER_HEAT_DOTS = int(os.getenv("DEWEY_PRINTER_HEAT_DOTS", "2"))  # ESC 7 command -> parameter n1 (max heating dots: 10 = ~88 dots)
+PRINTER_HEAT_DOTS = int(os.getenv("DEWEY_PRINTER_HEAT_DOTS", "2"))  # ESC 7 -> n1: ((n1+1)*8 dots: 2 = 24 dots)
 
 # Parameter n2 (Byte 4 of ESC 7): Heating pulse duration
 #   Formula: n2 * 10 µs burn pulse duration per dot group. Range: 3-255.
 #   Default: 80 (800 µs). Higher values = darker print, but increases line print time.
-PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "255"))  # ESC 7 command -> parameter n2 (heating time: 80 = 800 µs)
+PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "255"))  # ESC 7 -> n2: (burn time: n2*10µs: 255 = 2550 µs)
 
 # Parameter n3 (Byte 5 of ESC 7): Heating recovery interval
 #   Formula: n3 * 10 µs pause between dot groups on each line. Range: 0-255.
 #   Default: 2 (20 µs). Recommended: 20-40 (200-400 µs).
 #   CRITICAL: If set too high (e.g. 255 = 2.55 ms), the head cools down completely, causing faint/dim text.
-PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "2"))  # ESC 7 command -> parameter n3 (heating interval: 20 = 200 µs)
+PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "2"))  # ESC 7 -> n3: (recovery pause: n3*10µs: 2 = 20 µs)
 
 
 # ---------------------------------------------------------------------------
@@ -103,12 +103,12 @@ PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "2"))  # ES
 # Parameter n, Bits 4..0 (D4-D0 of DC2 #): Print density
 #   Formula: Density = 50% + 5% * n[D4..D0]. Range: 0-31 (0x00 - 0x1F).
 #   Values: 0 = 50% (lightest), 10 = 100% (normal), 15 = 125%, 31 = 205% (maximum darkness).
-PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "10"))  # DC2 # command -> byte n bits 4..0 (density: 15 = 125% darkness)
+PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "10"))  # DC2 # -> n bits 4..0: (density: 50% + 5%*n: 10 = 100%)
 
 # Parameter n, Bits 7..5 (D7-D5 of DC2 #): Inter-line break time
 #   Formula: Break Time = n[D7..D5] * 250 µs cooling wait between printing lines. Range: 0-7 (0x00 - 0x07, shifted << 5).
 #   Values: 0 = 0 µs, 2 = 500 µs, 7 = 1750 µs.
-PRINTER_BREAK_TIME = int(os.getenv("DEWEY_PRINTER_BREAK_TIME", "2"))  # DC2 # command -> byte n bits 7..5 (break time: 2 = 500 µs)
+PRINTER_BREAK_TIME = int(os.getenv("DEWEY_PRINTER_BREAK_TIME", "2"))  # DC2 # -> n bits 7..5: (break time: n*250µs: 2 = 500 µs)
 
 # DTR pin (BCM): None to disable hardware handshake (prevents GPIO floating/timing glitches)
 PRINTER_DTR_PIN: int | None = None
