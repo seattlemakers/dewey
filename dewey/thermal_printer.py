@@ -151,6 +151,14 @@ class LegacyThermalPrinter:
         else:
             logger.info("[PRINTER MOCK] set_double_strike(%s)", enabled)
 
+    def write(self, text: str) -> None:
+        """Sends raw string text encoded in ASCII/CP437 without trailing newline."""
+        if self.ser:
+            self.ser.write(text.encode('ascii', errors='ignore'))
+            self.ser.flush()
+        else:
+            logger.info("[PRINTER MOCK WRITE] %s", text)
+
     def write_line(self, text: str) -> None:
         """Prints a string line encoded in ASCII/CP437 layout."""
         if self.ser:
@@ -325,6 +333,142 @@ class LegacyThermalPrinter:
         img_1bit = img_gray.point(lambda p: 0 if p < 190 else 255, mode='1')
         return img_1bit
 
+    def render_catalog_label_image(
+        self,
+        comp_type: str,
+        part_number: str,
+        brief_desc: str,
+        category: str,
+        decimal_pn: str,
+        location: str,
+        price: str,
+        description: str,
+        mfr_part_number: Optional[str] = None,
+        dot_width: int = PRINTER_DOTS_PER_LINE,
+    ) -> "Image.Image":
+        """Renders a complete catalog component label (as specified in label_format.md)
+        to a 1-bit PIL Image suitable for bitmap thermal printing.
+        """
+        if Image is None:
+            raise RuntimeError("Pillow is required for bitmap label printing.")
+
+        MARGIN = 8
+        usable_w = dot_width - 2 * MARGIN
+
+        def _load_font(paths, size):
+            for p in paths:
+                try:
+                    return ImageFont.truetype(p, size)
+                except (IOError, OSError):
+                    pass
+            return ImageFont.load_default()
+
+        font_type = _load_font(FONT_PATHS_BOLD, 28)      # Component type (BOB) in black badge
+        font_pn = _load_font(FONT_PATHS_BOLD, 30)        # Part number (FT232H)
+        font_sub = _load_font(FONT_PATHS_NORMAL, 20)     # Manufacturer PN
+        font_brief = _load_font(FONT_PATHS_BOLD, 21)     # Brief description
+        font_meta = _load_font(FONT_PATHS_NORMAL, 19)    # Category, decimal PN, location
+        font_price = _load_font(FONT_PATHS_BOLD, 21)     # MSRP Price
+        font_body = _load_font(FONT_PATHS_NORMAL, 19)    # 100-word description
+
+        dummy = Image.new('1', (1, 1))
+        draw_dummy = ImageDraw.Draw(dummy)
+
+        def _wrap(text, font, max_w):
+            words = text.split()
+            lines, current = [], []
+            for word in words:
+                trial = ' '.join(current + [word])
+                bbox = draw_dummy.textbbox((0, 0), trial, font=font)
+                if bbox[2] - bbox[0] > max_w and current:
+                    lines.append(' '.join(current))
+                    current = [word]
+                else:
+                    current.append(word)
+            if current:
+                lines.append(' '.join(current))
+            return lines
+
+        def _text_bbox(text, font):
+            return draw_dummy.textbbox((0, 0), text, font=font)
+
+        brief_lines = _wrap(brief_desc, font_brief, usable_w)
+        cat_lines = _wrap(category, font_meta, usable_w)
+        body_lines = _wrap(description, font_body, usable_w)
+
+        h_brief_line = 25
+        h_meta_line = 23
+        h_body_line = 23
+
+        type_bbox = _text_bbox(comp_type, font_type)
+        badge_w = (type_bbox[2] - type_bbox[0]) + 14
+        badge_h = (type_bbox[3] - type_bbox[1]) + 8
+
+        pn_bbox = _text_bbox(part_number, font_pn)
+        line1_h = max(badge_h, pn_bbox[3] - pn_bbox[1])
+
+        total_h = MARGIN + line1_h + 8
+        if mfr_part_number:
+            total_h += h_meta_line + 4
+        total_h += len(brief_lines) * h_brief_line + 6
+        total_h += len(cat_lines) * h_meta_line + 4
+        total_h += h_meta_line + 4  # decimal PN
+        total_h += h_meta_line + 4  # location
+        total_h += h_brief_line + 6  # price
+        total_h += 12                # divider line & padding
+        total_h += len(body_lines) * h_body_line + MARGIN
+
+        img_gray = Image.new('L', (dot_width, total_h), 255)
+        draw = ImageDraw.Draw(img_gray)
+
+        y = MARGIN
+
+        # Line 1: [ BOB ] FT232H
+        draw.rounded_rectangle([MARGIN, y, MARGIN + badge_w, y + badge_h], radius=3, fill=0)
+        draw.text((MARGIN + 7, y + 2), comp_type, font=font_type, fill=255)
+        draw.text((MARGIN + badge_w + 10, y), part_number, font=font_pn, fill=0)
+        y += line1_h + 8
+
+        # Line 1.5: Manufacturer part number
+        if mfr_part_number:
+            draw.text((MARGIN, y), mfr_part_number, font=font_sub, fill=0)
+            y += h_meta_line + 4
+
+        # Line 2: Brief description (Bold)
+        for line in brief_lines:
+            draw.text((MARGIN, y), line, font=font_brief, fill=0)
+            y += h_brief_line
+        y += 4
+
+        # Line 3: Category
+        for line in cat_lines:
+            draw.text((MARGIN, y), line, font=font_meta, fill=0)
+            y += h_meta_line
+        y += 4
+
+        # Line 4: Decimal part number
+        draw.text((MARGIN, y), f"Part #: {decimal_pn}", font=font_meta, fill=0)
+        y += h_meta_line + 4
+
+        # Line 5: Location
+        draw.text((MARGIN, y), location, font=font_meta, fill=0)
+        y += h_meta_line + 4
+
+        # Line 6: Price (Bold)
+        draw.text((MARGIN, y), price, font=font_price, fill=0)
+        y += h_brief_line + 6
+
+        # Divider line
+        draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
+        y += 8
+
+        # Line 7: Description
+        for line in body_lines:
+            draw.text((MARGIN, y), line, font=font_body, fill=0)
+            y += h_body_line
+
+        return img_gray.point(lambda p: 0 if p < 190 else 255, mode='1')
+
     # --- TEXT EFFECTS ---
     def set_bold(self, enabled: bool = True) -> None:
         """Turns Bold on or off (ESC E n)."""
@@ -450,6 +594,93 @@ class LegacyThermalPrinter:
         # Description (Normal size, non-bold, word-wrapped to paper width)
         wrapped_lines = textwrap.wrap(description, width=PRINTER_CHARS_PER_LINE)
         for line in wrapped_lines:
+            self.write_line(line)
+
+        # Clean feed for tearing
+        self.feed(3)
+
+    def print_catalog_label(
+        self,
+        comp_type: str,
+        part_number: str,
+        brief_desc: str,
+        category: str,
+        decimal_pn: str,
+        location: str,
+        price: str,
+        description: str,
+        mfr_part_number: Optional[str] = None,
+        mode: str = 'text',
+    ) -> None:
+        """Prints a component catalog label conforming to label_format.md.
+
+        Supports both 'text' (native ESC/POS) and 'bitmap' (Pillow TrueType rendering).
+        """
+        logger.info("Printing catalog label (%s): [%s] %s", mode, comp_type, part_number)
+        self.set_heat_config()
+
+        if mode == 'bitmap':
+            self.feed(1)
+            img = self.render_catalog_label_image(
+                comp_type=comp_type,
+                part_number=part_number,
+                brief_desc=brief_desc,
+                category=category,
+                decimal_pn=decimal_pn,
+                location=location,
+                price=price,
+                description=description,
+                mfr_part_number=mfr_part_number,
+            )
+            self.print_bitmap(img)
+            self.feed(3)
+            return
+
+        # --- Native ESC/POS Text Mode ---
+        self.feed(1)
+
+        # Line 1: [ BOB ] FT232H (Double size, bold inverse badge + double size part number)
+        self.set_justification('left')
+        self.set_size('large')
+        self.set_bold(True)
+        self.set_invert(True)
+        self.write(f" {comp_type} ")
+        self.set_invert(False)
+        self.set_bold(False)
+        self.write_line(f" {part_number}")
+
+        # Line 1.5: Manufacturer part number (if present)
+        self.set_size('normal')
+        self.set_bold(False)
+        if mfr_part_number:
+            self.write_line(mfr_part_number)
+
+        # Line 2: Brief description (Bold, max 64 chars / 2 lines)
+        self.set_bold(True)
+        for line in textwrap.wrap(brief_desc, width=PRINTER_CHARS_PER_LINE):
+            self.write_line(line)
+        self.set_bold(False)
+
+        # Line 3: Category (Normal)
+        for line in textwrap.wrap(category, width=PRINTER_CHARS_PER_LINE):
+            self.write_line(line)
+
+        # Line 4: Database decimal part number
+        self.write_line(f"Part #: {decimal_pn}")
+
+        # Line 5: Location
+        self.write_line(location)
+
+        # Line 6: Price (Bold)
+        self.set_bold(True)
+        self.write_line(price)
+        self.set_bold(False)
+
+        # Divider line
+        self.write_line("-" * PRINTER_CHARS_PER_LINE)
+
+        # Line 7: 100-word Description (Normal)
+        for line in textwrap.wrap(description, width=PRINTER_CHARS_PER_LINE):
             self.write_line(line)
 
         # Clean feed for tearing
