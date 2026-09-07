@@ -8,11 +8,14 @@ Gemini-powered component identification, thermal printing, and keypad/switch con
 import argparse
 import logging
 import signal
+import subprocess
 import sys
+import threading
 import time
 from enum import Enum, auto
 
 from dewey.camera import CameraManager
+from dewey.config import PING_HOST, PING_INTERVAL
 from dewey.display import DisplayManager
 from dewey.gemini_service import GeminiComponentIdentifier
 from dewey.hardware import HardwareManager
@@ -55,6 +58,44 @@ class DeweyApp:
         self.current_part_number = ""
         self.current_description = ""
         self.last_error_message = ""
+
+        # Network keepalive daemon (pings to prevent SSH / WiFi timeout)
+        self.stop_event = threading.Event()
+        self.keepalive_thread = threading.Thread(
+            target=self._keepalive_loop,
+            daemon=True,
+            name="DeweyKeepalive",
+        )
+        self.keepalive_thread.start()
+
+    def _keepalive_loop(self) -> None:
+        """Background thread periodically pinging to keep WiFi & SSH connection active."""
+        logger.info("Network keepalive daemon started (pinging %s every %ds).", PING_HOST, PING_INTERVAL)
+        # Perform an initial ping shortly after startup (after 5 seconds)
+        if self.stop_event.wait(timeout=5.0):
+            return
+
+        initial = True
+        while not self.stop_event.is_set():
+            try:
+                res = subprocess.run(
+                    ["ping", "-c", "1", "-W", "2", PING_HOST],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                if res.returncode == 0:
+                    if initial:
+                        logger.info("Keepalive ping to %s verified OK.", PING_HOST)
+                        initial = False
+                    else:
+                        logger.debug("Keepalive ping to %s: OK", PING_HOST)
+                else:
+                    logger.warning("Keepalive ping to %s: non-zero return code %d", PING_HOST, res.returncode)
+            except Exception as err:
+                logger.debug("Keepalive ping exception: %s", err)
+
+            if self.stop_event.wait(timeout=PING_INTERVAL):
+                break
 
     def run(self) -> None:
         """Main application loop."""
@@ -181,6 +222,7 @@ class DeweyApp:
         """Clean shutdown of all hardware resources."""
         logger.info("Shutting down LABRARIAN MK 1...")
         self.running = False
+        self.stop_event.set()
         try:
             self.display.show_status("LABRARIAN MK 1", "Shutting down...")
             time.sleep(0.3)

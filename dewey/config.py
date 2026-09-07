@@ -132,4 +132,9 @@ DEFAULT_LABEL_LOCATION = os.getenv(
 )
 PRINTER_LABEL_MODE = os.getenv("DEWEY_PRINTER_LABEL_MODE", "text")
 
+# --- Network Keepalive ---
+# Periodic background ping to prevent SSH timeouts and WiFi power-save dropouts
+PING_HOST = os.getenv("DEWEY_PING_HOST", "google.com")
+PING_INTERVAL = int(os.getenv("DEWEY_PING_INTERVAL", "300"))  # Seconds (300s = 5 minutes)
+
 
