@@ -161,12 +161,6 @@ class DisplayManager:
         header_title = "[EDITING LABEL]" if is_editing else "[LABEL PREVIEW / EDIT]"
         draw.text((margin_x, cur_y), header_title, font=self.font_large, fill=COLOR_TEXT)
 
-        # Action indicator on top right
-        status_hint = "[PRINT] Print" if not is_editing else "[ENT] Save"
-        bbox_hint = draw.textbbox((0, 0), status_hint, font=self.font_small)
-        hint_w = bbox_hint[2] - bbox_hint[0]
-        draw.text((self.width - margin_x - hint_w, cur_y + 3), status_hint, font=self.font_small, fill=COLOR_DIM_TEXT)
-
         cur_y += 20
         draw.line([(margin_x, cur_y), (self.width - margin_x, cur_y)], fill=COLOR_DIM_TEXT, width=1)
         cur_y += 4
@@ -190,7 +184,9 @@ class DisplayManager:
             label_str = f"{field['label']:<8}"
 
             if is_selected and is_editing:
-                if field.get("type") == "choice":
+                if field.get("edit_display_str"):
+                    val_str = field["edit_display_str"]
+                elif field.get("type") == "choice":
                     val_str = f"◀ {field['val']} ▶"
                 else:
                     cursor = "_" if cursor_visible else " "
@@ -230,12 +226,14 @@ class DisplayManager:
 
         if is_editing:
             cur_field = fields[selected_idx] if 0 <= selected_idx < len(fields) else {}
-            if cur_field.get("type") == "choice":
-                footer_text = "F1/F2:Cycle  ENT:Save  CLR:Reset  F4:Cancel"
+            if cur_field.get("footer_hint"):
+                footer_text = cur_field["footer_hint"]
+            elif cur_field.get("type") == "choice":
+                footer_text = "F1/F2:Cycle  ENT:Select  CLR:Reset  ESC:Cancel"
             else:
-                footer_text = "0-9:Type  F3:.  CLR:Clear  ENT:Save  F4:Cancel"
+                footer_text = "0-9/Keys:Type  F3/.:Dot  CLR:Clear  ENT:Save  ESC:Cancel"
         else:
-            footer_text = "F1/F2:Move  ENT:Edit  PRINT:Print  F4:Camera"
+            footer_text = "F1/F2:Move  ENT:Edit  PRINT/P:Print  F4/ESC:Camera"
 
         draw.text((margin_x, footer_y), footer_text, font=self.font_small, fill=COLOR_DIM_TEXT)
 

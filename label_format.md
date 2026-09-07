@@ -5,7 +5,7 @@ https://www.adafruit.com/product/2264
 #### Component type
 *double-size, bold, inverse font*
 *If part has multiple types, prioritize as follows:*
-*These categories apply to specific, high-value components.*
+*These categories apply to specific, high-value components. Prioritize common name and model (e.g., Raspberry Pi 3 Model B) rather than chip-level designations (e.g., BCM2837) if known.*
 - SBC *(Single Board Computer)*
 - MCU *(Microcontroller)*
 - DEV *(Device - peripherals like webcams and mice that aren't meant to be soldered to or breadboarded)*

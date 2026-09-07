@@ -237,6 +237,17 @@ class MultiTapInput:
             self.last_press_time = now
             return self.buffer
 
+    def backspace(self) -> str:
+        """Deletes the last character in the buffer."""
+        self.last_key = None
+        if self.buffer:
+            self.buffer = self.buffer[:-1]
+        return self.buffer
+
+    def append_char(self, char: str) -> str:
+        """Appends a raw character directly (e.g. from USB keyboard)."""
+        self.last_key = None
+        self.buffer += char
         return self.buffer
 
     def get_text(self) -> str:
