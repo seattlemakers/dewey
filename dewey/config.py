@@ -103,7 +103,7 @@ PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "2"))  # ES
 # Parameter n, Bits 4..0 (D4-D0 of DC2 #): Print density
 #   Formula: Density = 50% + 5% * n[D4..D0]. Range: 0-31 (0x00 - 0x1F).
 #   Values: 0 = 50% (lightest), 10 = 100% (normal), 15 = 125%, 31 = 205% (maximum darkness).
-PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "10"))  # DC2 # -> n bits 4..0: (density: 50% + 5%*n: 10 = 100%)
+PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "31"))  # DC2 # -> n bits 4..0: (density: 50% + 5%*n: 10 = 100%)
 
 # Parameter n, Bits 7..5 (D7-D5 of DC2 #): Inter-line break time
 #   Formula: Break Time = n[D7..D5] * 250 µs cooling wait between printing lines. Range: 0-7 (0x00 - 0x07, shifted << 5).
