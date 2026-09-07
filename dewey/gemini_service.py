@@ -42,7 +42,7 @@ SYSTEM_INSTRUCTION = (
     '  "part_number": "FT232H", // Primary component / IC part number (e.g. FT232H, LM358, ESP32, 2N2222).\n'
     '  "mfr_part_number": "(Adafruit 2264)", // Manufacturer / distributor board SKU enclosed in parentheses if this is a breakout/assembled module, or "" if bare standard component.\n'
     '  "brief_desc": "FT232H Breakout: General Purpose USB to GPIO, SPI, I2C", // Bold summary line, strictly 64 characters maximum.\n'
-    '  "price": "MSRP: $14.95", // Typical MSRP or current retail price (e.g. "MSRP: $14.95").\n'
+    '  "price": "MSRP: $14.95", // Typical MSRP or current retail price (e.g. "MSRP: $14.95"). If price is per a quantity rather than per each, include the quantity and unit of measure (e.g. "MSRP: $2.50/10 pcs" or "MSRP: $5.00/pack").\n'
     '  "description": "..." // Approximately 100-word detailed technical specification paragraph covering: essential interfaces, power supply and I/O voltages, max currents, compatible software languages/libraries, and critical pin/usage warnings needed to start using the part.\n'
     "}\n"
     "Output ONLY the JSON object. Do not include markdown preamble, commentary, or backticks."
@@ -112,7 +112,7 @@ def normalize_mfr_pn(val: Optional[str]) -> str:
 
 
 def normalize_price(val: Optional[str]) -> str:
-    """Ensures price string follows 'MSRP: $X.XX' format."""
+    """Ensures price string follows 'MSRP: $X.XX' format, preserving quantity/unit (e.g. 'MSRP: $2.50/10 pcs')."""
     if not val:
         return "MSRP: $0.00"
     v = val.strip()
@@ -122,10 +122,12 @@ def normalize_price(val: Optional[str]) -> str:
         return v
     if v.startswith("$"):
         return f"MSRP: {v}"
-    # If pure number
-    match = re.search(r"(\d+(\.\d{1,2})?)", v)
+    # Match number with optional unit/quantity suffix (e.g. "2.50/10 pcs", "14.95")
+    match = re.search(r"^\$?(\d+(?:\.\d{1,2})?)(.*)$", v)
     if match:
-        return f"MSRP: ${match.group(1)}"
+        amount = match.group(1)
+        unit_suffix = match.group(2).strip()
+        return f"MSRP: ${amount}{unit_suffix}"
     return f"MSRP: {v}"
 
 

@@ -402,6 +402,7 @@ class LegacyThermalPrinter:
 
         brief_lines = _wrap(brief_desc, font_brief, usable_w)
         cat_lines = _wrap(category, font_meta, usable_w)
+        price_lines = _wrap(price, font_price, usable_w)
         body_lines = _wrap(description, font_body, usable_w)
 
         h_brief_line = 25
@@ -422,7 +423,7 @@ class LegacyThermalPrinter:
         total_h += len(cat_lines) * h_meta_line + 4
         total_h += h_meta_line + 4  # decimal PN
         total_h += h_meta_line + 4  # location
-        total_h += h_brief_line + 6  # price
+        total_h += len(price_lines) * h_brief_line + 6  # price
         total_h += 12                # divider line & padding
         total_h += len(body_lines) * h_body_line + MARGIN
 
@@ -464,8 +465,10 @@ class LegacyThermalPrinter:
         y += h_meta_line + 4
 
         # Line 6: Price (Bold)
-        draw.text((MARGIN, y), price, font=font_price, fill=0)
-        y += h_brief_line + 6
+        for line in price_lines:
+            draw.text((MARGIN, y), line, font=font_price, fill=0)
+            y += h_brief_line
+        y += 6
 
         # Divider line
         draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
@@ -683,7 +686,8 @@ class LegacyThermalPrinter:
 
         # Line 6: Price (Bold)
         self.set_bold(True)
-        self.write_line(price)
+        for line in textwrap.wrap(price, width=PRINTER_CHARS_PER_LINE):
+            self.write_line(line)
         self.set_bold(False)
 
         # Divider line

@@ -56,6 +56,7 @@ FT232H
 ### Line 6:
 #### Price
 *The typical MSRP of the component, or the current MSRP if it's a specific manufacturer's SKU.*
+*If price is per a quantity rather than per each, include the quantity and unit of measure. For example, "MSRP: $2.50/10 pcs"*
 *Bold font*
 
 **`MSRP: $14.95`**
