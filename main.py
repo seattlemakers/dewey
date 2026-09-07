@@ -343,7 +343,11 @@ class DeweyApp:
                     # Case A: Location (Hierarchical)
                     if cur_field["key"] == "location":
                         if edit_phase == "TEMPLATE":
-                            if key in ("F1", "UP", "LEFT"):
+                            if key == "CLR":
+                                edit_phase = "CUSTOM"
+                                input_mgr.reset("")
+                                needs_redraw = True
+                            elif key in ("F1", "UP", "LEFT"):
                                 loc_tmpl_idx = (loc_tmpl_idx - 1) % len(LOCATION_TEMPLATES)
                                 needs_redraw = True
                             elif key in ("F2", "DOWN", "RIGHT"):
@@ -358,6 +362,29 @@ class DeweyApp:
                             elif key in ("F4", "ESC"):
                                 is_editing = False
                                 needs_redraw = True
+                        elif edit_phase == "CUSTOM":
+                            if key == "BACKSPACE":
+                                input_mgr.backspace()
+                                needs_redraw = True
+                            elif key == "CLR":
+                                input_mgr.clear()
+                                needs_redraw = True
+                            elif key in ("ENT", "\t", "\r", "\n"):
+                                custom_val = input_mgr.get_text().strip()
+                                cur_field["val"] = custom_val
+                                self.current_label_data["location"] = custom_val
+                                is_editing = False
+                                needs_redraw = True
+                            elif key in ("F4", "ESC"):
+                                edit_phase = "TEMPLATE"
+                                needs_redraw = True
+                            else:
+                                if len(key) == 1 and ord(key) >= 32:
+                                    input_mgr.append_char(key)
+                                    needs_redraw = True
+                                elif key in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3"):
+                                    input_mgr.handle_key(key)
+                                    needs_redraw = True
                         else:  # SUBFIELD
                             sf = LOCATION_TEMPLATES[loc_tmpl_idx]["subfields"][subfield_idx]
                             if key == "BACKSPACE":
@@ -400,7 +427,11 @@ class DeweyApp:
                     # Case B: Price (Hierarchical)
                     elif cur_field["key"] == "price":
                         if edit_phase == "TEMPLATE":
-                            if key in ("F1", "UP", "LEFT"):
+                            if key == "CLR":
+                                edit_phase = "CUSTOM"
+                                input_mgr.reset("")
+                                needs_redraw = True
+                            elif key in ("F1", "UP", "LEFT"):
                                 price_tmpl_idx = (price_tmpl_idx - 1) % len(PRICE_TEMPLATES)
                                 needs_redraw = True
                             elif key in ("F2", "DOWN", "RIGHT"):
@@ -415,6 +446,29 @@ class DeweyApp:
                             elif key in ("F4", "ESC"):
                                 is_editing = False
                                 needs_redraw = True
+                        elif edit_phase == "CUSTOM":
+                            if key == "BACKSPACE":
+                                input_mgr.backspace()
+                                needs_redraw = True
+                            elif key == "CLR":
+                                input_mgr.clear()
+                                needs_redraw = True
+                            elif key in ("ENT", "\t", "\r", "\n"):
+                                custom_val = input_mgr.get_text().strip()
+                                cur_field["val"] = custom_val
+                                self.current_label_data["price"] = custom_val
+                                is_editing = False
+                                needs_redraw = True
+                            elif key in ("F4", "ESC"):
+                                edit_phase = "TEMPLATE"
+                                needs_redraw = True
+                            else:
+                                if len(key) == 1 and ord(key) >= 32:
+                                    input_mgr.append_char(key)
+                                    needs_redraw = True
+                                elif key in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3"):
+                                    input_mgr.handle_key(key)
+                                    needs_redraw = True
                         else:  # SUBFIELD
                             sf = PRICE_TEMPLATES[price_tmpl_idx]["subfields"][subfield_idx]
                             if key == "BACKSPACE":
@@ -439,15 +493,24 @@ class DeweyApp:
                                 edit_phase = "TEMPLATE"
                                 needs_redraw = True
                             else:
-                                if key in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3", "."):
-                                    if key == "F3":
-                                        input_mgr.append_char(".")
-                                    else:
+                                if sf["type"] == "number":
+                                    if key in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3", "."):
+                                        if key == "F3":
+                                            input_mgr.append_char(".")
+                                        else:
+                                            input_mgr.append_char(key)
+                                        needs_redraw = True
+                                    elif len(key) == 1 and (key.isdigit() or key == "."):
                                         input_mgr.append_char(key)
-                                    needs_redraw = True
-                                elif len(key) == 1 and (key.isdigit() or key == "."):
-                                    input_mgr.append_char(key)
-                                    needs_redraw = True
+                                        needs_redraw = True
+                                else:
+                                    # Text subfield (unit_name e.g. "meters of wire", "pcs", etc.)
+                                    if len(key) == 1 and ord(key) >= 32:
+                                        input_mgr.append_char(key)
+                                        needs_redraw = True
+                                    elif key in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3"):
+                                        input_mgr.handle_key(key)
+                                        needs_redraw = True
 
                     # Case C: Choice Field (comp_type)
                     elif cur_field["type"] == "choice":
@@ -455,25 +518,50 @@ class DeweyApp:
                         cur_val = cur_field["val"]
                         cur_opt_idx = opts.index(cur_val) if cur_val in opts else 0
 
-                        if key in ("F1", "UP", "LEFT"):
-                            cur_field["val"] = opts[(cur_opt_idx - 1) % len(opts)]
-                            self.current_label_data[cur_field["key"]] = cur_field["val"]
-                            needs_redraw = True
-                        elif key in ("F2", "DOWN", "RIGHT"):
-                            cur_field["val"] = opts[(cur_opt_idx + 1) % len(opts)]
-                            self.current_label_data[cur_field["key"]] = cur_field["val"]
-                            needs_redraw = True
-                        elif key in ("ENT", "\r", "\n", "\t"):
-                            is_editing = False
-                            self.current_label_data[cur_field["key"]] = cur_field["val"]
-                            needs_redraw = True
-                        elif key == "CLR":
-                            cur_field["val"] = opts[0]
-                            self.current_label_data[cur_field["key"]] = cur_field["val"]
-                            needs_redraw = True
-                        elif key in ("F4", "ESC"):
-                            is_editing = False
-                            needs_redraw = True
+                        if edit_phase == "CUSTOM":
+                            if key == "BACKSPACE":
+                                input_mgr.backspace()
+                                needs_redraw = True
+                            elif key == "CLR":
+                                input_mgr.clear()
+                                needs_redraw = True
+                            elif key in ("ENT", "\r", "\n", "\t"):
+                                custom_val = input_mgr.get_text().strip().upper()
+                                cur_field["val"] = custom_val
+                                self.current_label_data[cur_field["key"]] = custom_val
+                                is_editing = False
+                                edit_phase = "TEMPLATE"
+                                needs_redraw = True
+                            elif key in ("F4", "ESC"):
+                                edit_phase = "TEMPLATE"
+                                needs_redraw = True
+                            else:
+                                if len(key) == 1 and ord(key) >= 32:
+                                    input_mgr.append_char(key.upper())
+                                    needs_redraw = True
+                                elif key in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "F3"):
+                                    input_mgr.handle_key(key)
+                                    needs_redraw = True
+                        else:
+                            if key in ("F1", "UP", "LEFT"):
+                                cur_field["val"] = opts[(cur_opt_idx - 1) % len(opts)]
+                                self.current_label_data[cur_field["key"]] = cur_field["val"]
+                                needs_redraw = True
+                            elif key in ("F2", "DOWN", "RIGHT"):
+                                cur_field["val"] = opts[(cur_opt_idx + 1) % len(opts)]
+                                self.current_label_data[cur_field["key"]] = cur_field["val"]
+                                needs_redraw = True
+                            elif key in ("ENT", "\r", "\n", "\t"):
+                                is_editing = False
+                                self.current_label_data[cur_field["key"]] = cur_field["val"]
+                                needs_redraw = True
+                            elif key == "CLR":
+                                edit_phase = "CUSTOM"
+                                input_mgr.reset("")
+                                needs_redraw = True
+                            elif key in ("F4", "ESC"):
+                                is_editing = False
+                                needs_redraw = True
 
                     # Case D: Text / Numeric Entry (part_number, mfr_part_number, decimal_pn, etc.)
                     else:
@@ -521,7 +609,11 @@ class DeweyApp:
                         if edit_phase == "TEMPLATE":
                             tmpl_name = LOCATION_TEMPLATES[loc_tmpl_idx]["name"]
                             cur_field["edit_display_str"] = f"◀ {tmpl_name} ▶"
-                            cur_field["footer_hint"] = "F1/F2:Template  ENT:Edit numbers  ESC:Cancel"
+                            cur_field["footer_hint"] = "F1/F2:Tmpl  CLR:Custom/Del  ENT:Edit  ESC:Cancel"
+                        elif edit_phase == "CUSTOM":
+                            buf_text = input_mgr.get_text()
+                            cur_field["edit_display_str"] = f"Loc: [{buf_text}{cursor}]"
+                            cur_field["footer_hint"] = "Type custom loc or ENT to clear  ESC:Cancel"
                         else:
                             tmpl_name = LOCATION_TEMPLATES[loc_tmpl_idx]["name"]
                             sf = LOCATION_TEMPLATES[loc_tmpl_idx]["subfields"][subfield_idx]
@@ -533,7 +625,11 @@ class DeweyApp:
                         if edit_phase == "TEMPLATE":
                             tmpl_name = PRICE_TEMPLATES[price_tmpl_idx]["name"]
                             cur_field["edit_display_str"] = f"◀ {tmpl_name} ▶"
-                            cur_field["footer_hint"] = "F1/F2:Template  ENT:Edit price  ESC:Cancel"
+                            cur_field["footer_hint"] = "F1/F2:Tmpl  CLR:Custom/Del  ENT:Edit  ESC:Cancel"
+                        elif edit_phase == "CUSTOM":
+                            buf_text = input_mgr.get_text()
+                            cur_field["edit_display_str"] = f"Price: [{buf_text}{cursor}]"
+                            cur_field["footer_hint"] = "Type price or ENT to clear  ESC:Cancel"
                         else:
                             buf_text = input_mgr.get_text()
                             if price_tmpl_idx == 0:
@@ -542,16 +638,28 @@ class DeweyApp:
                             else:
                                 if subfield_idx == 0:
                                     cur_qty = price_vals.get("qty", "10")
-                                    cur_field["edit_display_str"] = f"MSRP: $[{buf_text}{cursor}]/{cur_qty} units"
+                                    cur_unit = price_vals.get("unit_name", "units")
+                                    cur_field["edit_display_str"] = f"MSRP: $[{buf_text}{cursor}]/{cur_qty} {cur_unit}"
                                     cur_field["footer_hint"] = "0-9/.:Price  CLR:Clear  ENT:Next  ESC:Back"
+                                elif subfield_idx == 1:
+                                    cur_amt = price_vals.get("amount", "2.50")
+                                    cur_unit = price_vals.get("unit_name", "units")
+                                    cur_field["edit_display_str"] = f"MSRP: ${cur_amt}/[{buf_text}{cursor}] {cur_unit}"
+                                    cur_field["footer_hint"] = "0-9:Qty  CLR:Clear  ENT:Next  ESC:Back"
                                 else:
                                     cur_amt = price_vals.get("amount", "2.50")
-                                    cur_field["edit_display_str"] = f"MSRP: ${cur_amt}/[{buf_text}{cursor}] units"
-                                    cur_field["footer_hint"] = "0-9:Units  CLR:Clear  ENT:Save  ESC:Back"
+                                    cur_qty = price_vals.get("qty", "10")
+                                    cur_field["edit_display_str"] = f"MSRP: ${cur_amt}/{cur_qty} [{buf_text}{cursor}]"
+                                    cur_field["footer_hint"] = "Type unit (e.g. meters)  ENT:Save  ESC:Back"
 
                     elif cur_field["type"] == "choice":
-                        cur_field["edit_display_str"] = None
-                        cur_field["footer_hint"] = "F1/F2:Cycle  ENT:Save  CLR:Reset  ESC:Cancel"
+                        if edit_phase == "CUSTOM":
+                            buf_text = input_mgr.get_text()
+                            cur_field["edit_display_str"] = f"Type: [{buf_text}{cursor}]"
+                            cur_field["footer_hint"] = "Type custom code or ENT to clear  ESC:Cancel"
+                        else:
+                            cur_field["edit_display_str"] = None
+                            cur_field["footer_hint"] = "F1/F2:Cycle  CLR:Custom  ENT:Save  ESC:Cancel"
                     else:
                         cur_field["edit_display_str"] = None
                         cur_field["footer_hint"] = "0-9/Keys:Type  F3/.:Dot  CLR:Clear  ENT:Save  ESC:Cancel"
@@ -569,7 +677,7 @@ class DeweyApp:
                 )
                 needs_redraw = False
 
-            time.sleep(0.02)
+            time.sleep(0.005)
 
     def _handle_error_state(self) -> None:
         """Error state: displays error details, waits for F4 or Rescan."""

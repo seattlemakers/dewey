@@ -55,10 +55,11 @@ PRICE_TEMPLATES = [
     },
     {
         "name": "Per Qty ($/units)",
-        "format": "MSRP: ${amount}/{qty} units",
+        "format": "MSRP: ${amount}/{qty} {unit_name}",
         "subfields": [
             {"key": "amount", "label": "MSRP $", "type": "number", "default": "2.50"},
-            {"key": "qty", "label": "units", "type": "number", "default": "10"},
+            {"key": "qty", "label": "qty", "type": "number", "default": "10"},
+            {"key": "unit_name", "label": "unit", "type": "text", "default": "units"},
         ],
     },
 ]
@@ -126,16 +127,22 @@ def parse_price(price_str: str) -> Tuple[int, Dict[str, str]]:
     s = (price_str or "").strip()
 
     if "/" in s:
-        # Per quantity format: e.g. MSRP: $2.50/10 pcs or $350/10 units
+        # Per quantity format: e.g. MSRP: $2.50/10 pcs or $5/meter or $350/10 units
         tmpl_idx = 1
         parts = s.split("/", 1)
-        # Extract numeric amount from first part
         m_amt = re.search(r"(\d+(?:\.\d+)?)", parts[0])
         amt = m_amt.group(1) if m_amt else "2.50"
-        # Extract numeric qty from second part
-        m_qty = re.search(r"(\d+)", parts[1])
-        qty = m_qty.group(1) if m_qty else "10"
-        return tmpl_idx, {"amount": amt, "qty": qty}
+
+        tail = parts[1].strip()
+        m_tail = re.match(r"^(\d+)\s*(.*)$", tail)
+        if m_tail:
+            qty = m_tail.group(1)
+            unit_name = m_tail.group(2).strip() or "units"
+        else:
+            qty = "1"
+            unit_name = tail or "units"
+
+        return tmpl_idx, {"amount": amt, "qty": qty, "unit_name": unit_name}
 
     # Single unit format: e.g. MSRP: $14.95 or $35.00
     tmpl_idx = 0
@@ -148,9 +155,15 @@ def format_price(tmpl_idx: int, vals: Dict[str, str]) -> str:
     """Formats price string from template index and subfield values."""
     if not (0 <= tmpl_idx < len(PRICE_TEMPLATES)):
         tmpl_idx = 0
-    tmpl = PRICE_TEMPLATES[tmpl_idx]
-    clean_vals = {}
-    for sf in tmpl["subfields"]:
-        k = sf["key"]
-        clean_vals[k] = vals.get(k, sf["default"])
-    return tmpl["format"].format(**clean_vals)
+    if tmpl_idx == 0:
+        amt = vals.get("amount", "14.95").strip()
+        return f"MSRP: ${amt}"
+
+    amt = vals.get("amount", "2.50").strip()
+    qty = vals.get("qty", "10").strip()
+    unit_name = vals.get("unit_name", "units").strip() or "units"
+
+    if qty and qty != "1":
+        return f"MSRP: ${amt}/{qty} {unit_name}"
+    else:
+        return f"MSRP: ${amt}/{unit_name}"

@@ -58,7 +58,7 @@ class Keypad4x4:
             
         # Case 3: A new key press event has just been detected
         # Double-check scan (Debounce) to confirm it wasn't an electrical glitch
-        time.sleep(0.02)
+        time.sleep(0.005)
         confirm_key = self.scan_matrix()
         
         if confirm_key == current_key:

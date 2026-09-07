@@ -427,9 +427,12 @@ class LegacyThermalPrinter:
         total_h += len(brief_lines) * h_brief_line + 6
         total_h += 12                # Divider 1 after brief description
         total_h += len(cat_lines) * h_meta_line + 4
-        total_h += h_meta_line + 4  # decimal PN
-        total_h += h_meta_line + 4  # location
-        total_h += len(price_lines) * h_brief_line + 6  # price
+        if decimal_pn:
+            total_h += h_meta_line + 4  # decimal PN
+        if location:
+            total_h += h_meta_line + 4  # location
+        if price:
+            total_h += len(price_lines) * h_brief_line + 6  # price
         total_h += h_meta_line + 6  # Line 7: Last updated date
         total_h += 12                # Divider 2 before description
         total_h += len(body_lines) * h_body_line + MARGIN
@@ -458,7 +461,7 @@ class LegacyThermalPrinter:
 
         # Divider line 1 (after brief description)
         draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
-        y += 8
+        y += 6
 
         # Line 3: Category
         for line in cat_lines:
@@ -466,19 +469,23 @@ class LegacyThermalPrinter:
             y += h_meta_line
         y += 4
 
-        # Line 4: Decimal part number / Database ID
-        db_id_text = decimal_pn if decimal_pn.startswith("Database ID:") else f"Database ID: {decimal_pn}"
-        draw.text((MARGIN, y), db_id_text, font=font_meta, fill=0)
-        y += h_meta_line + 4
+        # Line 4: Database decimal ID
+        if decimal_pn:
+            db_id_text = decimal_pn if decimal_pn.startswith("Database ID:") else f"Database ID: {decimal_pn}"
+            draw.text((MARGIN, y), db_id_text, font=font_meta, fill=0)
+            y += h_meta_line + 4
 
         # Line 5: Location
-        draw.text((MARGIN, y), location, font=font_meta, fill=0)
-        y += h_meta_line + 4
+        if location:
+            draw.text((MARGIN, y), location, font=font_meta, fill=0)
+            y += h_meta_line + 4
 
         # Line 6: Price (Bold)
-        for line in price_lines:
-            draw.text((MARGIN, y), line, font=font_price, fill=0)
-            y += h_brief_line
+        if price:
+            for line in price_lines:
+                draw.text((MARGIN, y), line, font=font_price, fill=0)
+                y += h_brief_line
+            y += 4
         y += 4
 
         # Line 7: Date printed
@@ -698,17 +705,20 @@ class LegacyThermalPrinter:
             self.write_line(line)
 
         # Line 4: Database decimal ID
-        db_id_text = decimal_pn if decimal_pn.startswith("Database ID:") else f"Database ID: {decimal_pn}"
-        self.write_line(db_id_text)
+        if decimal_pn:
+            db_id_text = decimal_pn if decimal_pn.startswith("Database ID:") else f"Database ID: {decimal_pn}"
+            self.write_line(db_id_text)
 
         # Line 5: Location
-        self.write_line(location)
+        if location:
+            self.write_line(location)
 
         # Line 6: Price (Bold)
-        self.set_bold(True)
-        for line in textwrap.wrap(price, width=PRINTER_CHARS_PER_LINE):
-            self.write_line(line)
-        self.set_bold(False)
+        if price:
+            self.set_bold(True)
+            for line in textwrap.wrap(price, width=PRINTER_CHARS_PER_LINE):
+                self.write_line(line)
+            self.set_bold(False)
 
         # Line 7: Date printed
         if not date_updated:

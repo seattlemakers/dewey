@@ -136,6 +136,52 @@ class DisplayManager:
         draw.rectangle((6, 6, self.width - 7, self.height - 7), outline=COLOR_DIM_TEXT, width=1)
         self._present(canvas)
 
+    @staticmethod
+    def _wrap_value_lines(val: str, max_chars: int = 33, max_lines: int = 3) -> List[str]:
+        """Wraps text cleanly across multiple lines, breaking on spaces or chunking long tokens."""
+        val = (val or "").strip()
+        if not val:
+            return [""]
+
+        words = val.split(" ")
+        lines = []
+        curr = ""
+
+        for w in words:
+            if not w:
+                continue
+            if len(w) > max_chars:
+                if curr:
+                    lines.append(curr)
+                    curr = ""
+                for i in range(0, len(w), max_chars):
+                    chunk = w[i : i + max_chars]
+                    if len(chunk) == max_chars:
+                        lines.append(chunk)
+                    else:
+                        curr = chunk
+                continue
+
+            if not curr:
+                curr = w
+            elif len(curr) + 1 + len(w) <= max_chars:
+                curr += " " + w
+            else:
+                lines.append(curr)
+                curr = w
+
+        if curr:
+            lines.append(curr)
+
+        if max_lines and len(lines) > max_lines:
+            lines = lines[:max_lines]
+            if len(lines[-1]) > max_chars - 2:
+                lines[-1] = lines[-1][: max_chars - 2] + ".."
+            else:
+                lines[-1] += ".."
+
+        return lines or [""]
+
     def show_label_editor(
         self,
         fields: List[dict],
@@ -145,10 +191,10 @@ class DisplayManager:
         cursor_visible: bool = True,
     ) -> None:
         """Renders interactive label editor with monospace aliased typography:
-        - Lists all editable label fields
-        - Highlights currently focused field (inverted bar in browse mode)
+        - Lists all editable label fields with automatic wrapping for Location, Category/Catalog, and Price
+        - Highlights currently focused field (inverted block in browse mode, box in edit mode)
         - Shows inline edit controls (arrows for options, blinking cursor for text)
-        - Dynamic bottom status line displaying available keypad actions
+        - Context-sensitive button descriptions moved up one line with dual horizontal rule borders
         """
         canvas = Image.new("RGB", (self.width, self.height), COLOR_BG)
         draw = ImageDraw.Draw(canvas)
@@ -163,24 +209,20 @@ class DisplayManager:
 
         cur_y += 20
         draw.line([(margin_x, cur_y), (self.width - margin_x, cur_y)], fill=COLOR_DIM_TEXT, width=1)
-        cur_y += 4
+        start_y = cur_y + 4
 
-        # --- Fields List ---
-        row_height = 18
-        max_visible_rows = 8
+        # Footer boundary: button descriptions moved up one line with lines above and under
+        footer_y = self.height - 32
+        max_y = footer_y - 6
 
-        scroll_offset = 0
-        if len(fields) > max_visible_rows:
-            if selected_idx >= max_visible_rows:
-                scroll_offset = selected_idx - max_visible_rows + 1
+        # --- Fields Layout with Multi-Line Wrapping ---
+        # Allow location, category (human-readable catalog), price, and brief_desc to wrap
+        wrappable_keys = {"location", "category", "price", "brief_desc"}
+        max_chars_per_line = 33
 
-        visible_fields = fields[scroll_offset : scroll_offset + max_visible_rows]
-
-        for i, field in enumerate(visible_fields):
-            actual_idx = scroll_offset + i
-            is_selected = (actual_idx == selected_idx)
-            y_pos = cur_y + i * row_height
-
+        field_layouts = []
+        for idx, field in enumerate(fields):
+            is_selected = (idx == selected_idx)
             label_str = f"{field['label']:<8}"
 
             if is_selected and is_editing:
@@ -194,35 +236,84 @@ class DisplayManager:
             else:
                 val_str = str(field.get("val", ""))
 
-            # Truncate value if it exceeds available display width (~33 monospace chars)
-            max_val_chars = 33
-            if len(val_str) > max_val_chars:
-                val_str = val_str[:max_val_chars - 2] + ".."
+            # Wrap field if requested or in wrappable keys
+            if field.get("wrap", False) or field.get("key") in wrappable_keys:
+                wrapped_vals = self._wrap_value_lines(val_str, max_chars=max_chars_per_line, max_lines=2)
+                if len(wrapped_vals) == 1:
+                    lines = [f"{label_str} {wrapped_vals[0]}"]
+                else:
+                    indent = " " * (len(label_str) + 1)
+                    lines = [f"{label_str} {wrapped_vals[0]}"] + [f"{indent}{v}" for v in wrapped_vals[1:]]
+            else:
+                if len(val_str) > max_chars_per_line:
+                    val_str = val_str[:max_chars_per_line - 2] + ".."
+                lines = [f"{label_str} {val_str}"]
 
-            line_text = f"{label_str} {val_str}"
+            # Dynamic field height: 16px base + 14px per extra line
+            f_height = 16 + (len(lines) - 1) * 14
+            field_layouts.append({"lines": lines, "height": f_height})
 
-            if is_selected:
+        # --- Dynamic Scrolling to keep selected_idx visible ---
+        if not hasattr(self, "_editor_scroll_offset"):
+            self._editor_scroll_offset = 0
+
+        if selected_idx < self._editor_scroll_offset:
+            self._editor_scroll_offset = selected_idx
+
+        def span_h(start_i: int, end_i: int) -> int:
+            return sum(field_layouts[k]["height"] for k in range(start_i, end_i + 1))
+
+        avail_h = max_y - start_y
+        while self._editor_scroll_offset < selected_idx and span_h(self._editor_scroll_offset, selected_idx) > avail_h:
+            self._editor_scroll_offset += 1
+
+        # --- Render Visible Fields ---
+        draw_y = start_y
+        last_drawn_idx = self._editor_scroll_offset
+
+        for idx in range(self._editor_scroll_offset, len(fields)):
+            layout = field_layouts[idx]
+            flines = layout["lines"]
+            fheight = layout["height"]
+
+            if draw_y + fheight > max_y + 2 and idx != selected_idx:
+                break
+
+            last_drawn_idx = idx
+            is_sel = (idx == selected_idx)
+
+            if is_sel:
                 if is_editing:
-                    # Draw outlined box for active edit field
+                    # Outlined box for active edit field
                     draw.rectangle(
-                        [(margin_x - 2, y_pos - 1), (self.width - margin_x + 2, y_pos + row_height - 3)],
+                        [(margin_x - 2, draw_y - 1), (self.width - margin_x + 2, draw_y + fheight - 3)],
                         outline=COLOR_TEXT,
                         width=1,
                     )
-                    draw.text((margin_x, y_pos), line_text, font=self.font_normal, fill=COLOR_TEXT)
+                    for li, ltext in enumerate(flines):
+                        draw.text((margin_x, draw_y + li * 14), ltext, font=self.font_normal, fill=COLOR_TEXT)
                 else:
                     # Browse mode: full inverted orange block with black text
                     draw.rectangle(
-                        [(margin_x - 2, y_pos - 1), (self.width - margin_x + 2, y_pos + row_height - 3)],
+                        [(margin_x - 2, draw_y - 1), (self.width - margin_x + 2, draw_y + fheight - 3)],
                         fill=COLOR_TEXT,
                     )
-                    draw.text((margin_x, y_pos), line_text, font=self.font_normal, fill=COLOR_BG)
+                    for li, ltext in enumerate(flines):
+                        draw.text((margin_x, draw_y + li * 14), ltext, font=self.font_normal, fill=COLOR_BG)
             else:
-                draw.text((margin_x, y_pos), line_text, font=self.font_normal, fill=COLOR_TEXT)
+                for li, ltext in enumerate(flines):
+                    draw.text((margin_x, draw_y + li * 14), ltext, font=self.font_normal, fill=COLOR_TEXT)
 
-        # --- Footer: Context-sensitive key instructions ---
-        footer_y = self.height - 18
-        draw.line([(margin_x, footer_y - 3), (self.width - margin_x, footer_y - 3)], fill=COLOR_DIM_TEXT, width=1)
+            draw_y += fheight
+
+        # Scroll indicators
+        if self._editor_scroll_offset > 0:
+            draw.text((self.width - margin_x - 10, cur_y - 18), "▲", font=self.font_small, fill=COLOR_DIM_TEXT)
+        if last_drawn_idx < len(fields) - 1:
+            draw.text((self.width - margin_x - 10, footer_y - 16), "▼", font=self.font_small, fill=COLOR_DIM_TEXT)
+
+        # --- Footer: Button Descriptions with Top and Under Lines ---
+        draw.line([(margin_x, footer_y - 4), (self.width - margin_x, footer_y - 4)], fill=COLOR_DIM_TEXT, width=1)
 
         if is_editing:
             cur_field = fields[selected_idx] if 0 <= selected_idx < len(fields) else {}
@@ -236,6 +327,7 @@ class DisplayManager:
             footer_text = "F1/F2:Move  ENT:Edit  PRINT/P:Print  F4/ESC:Camera"
 
         draw.text((margin_x, footer_y), footer_text, font=self.font_small, fill=COLOR_DIM_TEXT)
+        draw.line([(margin_x, footer_y + 14), (self.width - margin_x, footer_y + 14)], fill=COLOR_DIM_TEXT, width=1)
 
         self._present(canvas)
 
@@ -318,15 +410,18 @@ class DisplayManager:
             draw.text((margin_x, cur_y), "...", font=self.font_small, fill=COLOR_DIM_TEXT)
 
         # --- Footer: Controls Hint ---
+        footer_y = self.height - 32
+        draw.line([(margin_x, footer_y - 4), (self.width - margin_x, footer_y - 4)], fill=COLOR_DIM_TEXT, width=1)
         footer_text = "[PRINT] Print Label   [F4] Live View   [SCAN] Rescan"
         bbox_f = draw.textbbox((0, 0), footer_text, font=self.font_small)
         foot_w = bbox_f[2] - bbox_f[0]
         draw.text(
-            ((self.width - foot_w) // 2, self.height - 18),
+            ((self.width - foot_w) // 2, footer_y),
             footer_text,
             font=self.font_small,
             fill=COLOR_DIM_TEXT,
         )
+        draw.line([(margin_x, footer_y + 14), (self.width - margin_x, footer_y + 14)], fill=COLOR_DIM_TEXT, width=1)
 
         self._present(canvas)
 
