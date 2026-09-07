@@ -44,7 +44,7 @@ SYSTEM_INSTRUCTION = (
     '  "mfr_part_number": "(Adafruit 2264)", // Manufacturer / distributor board SKU enclosed in parentheses if this is a breakout/assembled module, or "" if bare standard component.\n'
     '  "brief_desc": "FT232H Breakout: General Purpose USB to GPIO, SPI, I2C", // Bold summary line, strictly 64 characters maximum.\n'
     '  "price": "MSRP: $14.95", // Typical MSRP or current retail price (e.g. "MSRP: $14.95"). If price is per a quantity rather than per each, include the quantity and unit of measure (e.g. "MSRP: $2.50/10 pcs" or "MSRP: $5.00/pack").\n'
-    '  "description": "..." // Approximately 100-word detailed technical specification paragraph covering: essential interfaces, power supply and I/O voltages, max currents, compatible software languages/libraries, and critical pin/usage warnings needed to start using the part.\n'
+    '  "description": "..." // Approximately 100-word detailed technical specification paragraph covering: essential interfaces, package, power supply and I/O voltages, max currents, compatible software languages/libraries, and critical pin/usage warnings needed to start using the part.\n'
     "}\n"
     "Output ONLY the JSON object. Do not include markdown preamble, commentary, or backticks."
 )
