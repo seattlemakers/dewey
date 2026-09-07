@@ -89,7 +89,7 @@ PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "80"))  # ESC 7 com
 #   Formula: n3 * 10 µs pause between dot groups on each line. Range: 0-255.
 #   Default: 2 (20 µs). Recommended: 20-40 (200-400 µs).
 #   CRITICAL: If set too high (e.g. 255 = 2.55 ms), the head cools down completely, causing faint/dim text.
-PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "20"))  # ESC 7 command -> parameter n3 (heating interval: 20 = 200 µs)
+PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "2"))  # ESC 7 command -> parameter n3 (heating interval: 20 = 200 µs)
 
 
 # ---------------------------------------------------------------------------
