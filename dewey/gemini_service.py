@@ -39,7 +39,19 @@ SYSTEM_INSTRUCTION = (
     "voltage and current ratings, communication interfaces, compatible frameworks and libraries (especially Arduino and CircuitPython ones if relevant; note the languages; and if it's an SBC like Raspberry Pi, operating systems), and pin warnings.\n\n"
     "Return a strictly valid JSON object with the following fields:\n"
     "{\n"
-    '  "comp_type": "BOB", // Component classification. MUST be one of: "SBC" (Single Board Computer), "MCU" (Microcontroller), "BOB" (Breakout board / module), "SMT" (Surface mount), "THT" (Through-hole), "PMT" (Panel mount), "OTH" (Other). Prioritize: SBC > MCU > BOB > SMT > THT > PMT > OTH.\n'
+    '  "comp_type": "BOB", // Component classification. MUST be one of:\n'
+    '                      //   "SBC" (Single Board Computer),\n'
+    '                      //   "MCU" (Microcontroller),\n'
+    '                      //   "DEV" (Device - peripherals like webcams, camera modules, mice not meant to be soldered or breadboarded),\n'
+    '                      //   "BOB" (Breakout board / prototyping module),\n'
+    '                      //   "SMT" (Surface mount component),\n'
+    '                      //   "THT" (Through-hole component),\n'
+    '                      //   "PMT" (Panel mount),\n'
+    '                      //   "WIR" (Wire, cable, harness),\n'
+    '                      //   "CNS" (Consumables - thermal paste, solder, tape, flux),\n'
+    '                      //   "OTH" (Other).\n'
+    '                      // Prioritize: SBC > MCU > DEV > BOB > SMT > THT > PMT > WIR > CNS > OTH.\n'
+    '                      // Note: Bare PCBs that are complete peripherals (e.g. camera modules) must be classified as DEV, not BOB.\n'
     '  "part_number": "FT232H", // Primary component / IC part number (e.g. FT232H, LM358, ESP32, 2N2222).\n'
     '  "mfr_part_number": "(Adafruit 2264)", // Manufacturer / distributor board SKU enclosed in parentheses if this is a breakout/assembled module, or "" if bare standard component.\n'
     '  "brief_desc": "FT232H Breakout: General Purpose USB to GPIO, SPI, I2C", // Bold summary line, strictly 64 characters maximum. Include package type if relevant.\n'
@@ -83,14 +95,19 @@ def extract_json_object(raw_text: str) -> Dict[str, Any]:
 
 
 def normalize_comp_type(val: str, default: str = "OTH") -> str:
-    """Normalizes component type according to priority: SBC > MCU > BOB > SMT > THT > PMT > OTH."""
+    """Normalizes component type according to priority:
+    SBC > MCU > DEV > BOB > SMT > THT > PMT > WIR > CNS > OTH.
+    """
     v = (val or "").strip().upper()
-    if v in ("SBC", "MCU", "BOB", "SMT", "THT", "PMT", "OTH"):
+    valid_types = ("SBC", "MCU", "DEV", "BOB", "SMT", "THT", "PMT", "WIR", "CNS", "OTH")
+    if v in valid_types:
         return v
     if "SBC" in v or "SINGLE BOARD COMPUTER" in v:
         return "SBC"
     if "MCU" in v or "MICROCONTROLLER" in v:
         return "MCU"
+    if "DEV" in v or "DEVICE" in v or "PERIPHERAL" in v or "CAMERA" in v or "WEBCAM" in v or "MOUSE" in v:
+        return "DEV"
     if "BOB" in v or "BREAKOUT" in v or "MODULE" in v:
         return "BOB"
     if "SMT" in v or "SMD" in v or "SURFACE" in v:
@@ -99,6 +116,10 @@ def normalize_comp_type(val: str, default: str = "OTH") -> str:
         return "THT"
     if "PMT" in v or "PANEL" in v:
         return "PMT"
+    if "WIR" in v or "WIRE" in v or "CABLE" in v or "HARNESS" in v:
+        return "WIR"
+    if "CNS" in v or "CONSUMABLE" in v or "SOLDER" in v or "PASTE" in v or "FLUX" in v:
+        return "CNS"
     if "OTH" in v or "OTHER" in v:
         return "OTH"
     return default
@@ -173,7 +194,7 @@ class GeminiComponentIdentifier:
         image_part = types.Part.from_bytes(data=jpeg_bytes, mime_type="image/jpeg")
         prompt = (
             "Examine this electronic component. Output the catalog JSON object with "
-            "comp_type (BOB, SMT, THT, PMT, or OTH), part_number, mfr_part_number, "
+            "comp_type (SBC, MCU, DEV, BOB, SMT, THT, PMT, WIR, CNS, or OTH), part_number, mfr_part_number, "
             "brief_desc, price, and 100-word description."
         )
 

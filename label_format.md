@@ -5,13 +5,23 @@ https://www.adafruit.com/product/2264
 #### Component type
 *double-size, bold, inverse font*
 *If part has multiple types, prioritize as follows:*
+*These categories apply to specific, high-value components.*
 - SBC *(Single Board Computer)*
 - MCU *(Microcontroller)*
+- DEV *(Device - peripherals like webcams and mice that aren't meant to be soldered to or breadboarded)*
+
+*These categories apply to anything else based on mounting type*
 - BOB *(Breakout board)*
 - SMT *(Surface mount)*
 - THT *(Through-hole)*
 - PMT *(Panel mount)*
+
+*These categories apply to components that don't fit any other category*
+- WIR *(Wire, cable, etc.)*
+- CNS *(Consumables - things like thermal paste, solder, etc. that don't fit any other category)*
 - OTH *(other)*
+
+*Remember that items that are bare PCBs may not always be breakout boards meant for prototyping! For example, camera modules should be classified as devices, not breakout boards. Same with anything that *
 
 **`BOB`**
 
