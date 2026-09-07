@@ -31,6 +31,8 @@ FT232H
 
 **`FT232H Breakout: General Purpose USB to GPIO, SPI, I2C`**
 
+*Insert a horizontal line here.*
+
 ### Line 3:
 #### Human-readable category
 *Normal font*
@@ -62,6 +64,14 @@ FT232H
 **`MSRP: $14.95`**
 
 ### Line 7:
+#### Date printed
+*Normal font, YYYY-MM-DD format*
+
+`Last updated: 2026-09-07`
+
+*Insert a horizontal line here.*
+
+### Line 8:
 #### Description
 *100-word description of part including essential attirbutes such as interfaces, power and IO voltages and currents (if relevant), compatible programming languages, warnings, anything needed to start using the part.*
 

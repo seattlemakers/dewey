@@ -32,6 +32,7 @@ LABEL_DATA = {
     "decimal_pn": "15.45.35.15",
     "location": "Location: Beige Cart, drawer 7",
     "price": "MSRP: $14.95",
+    "date_updated": "2026-09-07",
     "description": (
         "Single-channel USB 2.0 Hi-Speed (480Mbps) to UART, FIFO, I2C, SPI, JTAG, "
         "and GPIO interface breakout board. Powered via 5V USB with an onboard 3.3V "

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 try:
@@ -283,6 +284,7 @@ class GeminiComponentIdentifier:
             "decimal_pn": DEFAULT_LABEL_DATABASE_ID,
             "location": DEFAULT_LABEL_LOCATION,
             "price": price,
+            "date_updated": datetime.now().strftime("%Y-%m-%d"),
             "description": description,
         }
 

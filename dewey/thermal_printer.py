@@ -352,16 +352,15 @@ class LegacyThermalPrinter:
         price: str,
         description: str,
         mfr_part_number: Optional[str] = None,
+        date_updated: Optional[str] = None,
         dot_width: int = PRINTER_DOTS_PER_LINE,
-    ) -> "Image.Image":
-        """Renders a complete catalog component label (as specified in label_format.md)
-        to a 1-bit PIL Image suitable for bitmap thermal printing.
-        """
-        if Image is None:
-            raise RuntimeError("Pillow is required for bitmap label printing.")
+    ) -> Image.Image:
+        """Renders the catalog label as a 1-bit monochrome PIL Image.
 
-        MARGIN = 8
-        usable_w = dot_width - 2 * MARGIN
+        Uses TrueType font rendering, anti-aliased scaling, and layout matching label_format.md.
+        """
+        MARGIN = 12
+        usable_w = dot_width - (MARGIN * 2)
 
         def _load_font(paths, size):
             for p in paths:
@@ -372,12 +371,12 @@ class LegacyThermalPrinter:
             return ImageFont.load_default()
 
         font_type = _load_font(FONT_PATHS_BOLD, 28)      # Component type (BOB) in black badge
-        font_pn = _load_font(FONT_PATHS_BOLD, 30)        # Part number (FT232H)
-        font_sub = _load_font(FONT_PATHS_NORMAL, 20)     # Manufacturer PN
-        font_brief = _load_font(FONT_PATHS_BOLD, 21)     # Brief description
-        font_meta = _load_font(FONT_PATHS_NORMAL, 19)    # Category, decimal PN, location
-        font_price = _load_font(FONT_PATHS_BOLD, 21)     # MSRP Price
-        font_body = _load_font(FONT_PATHS_NORMAL, 19)    # 100-word description
+        font_pn = _load_font(FONT_PATHS_BOLD, 30)        # Part number (large bold)
+        font_sub = _load_font(FONT_PATHS_NORMAL, 18)     # Mfr part number (Adafruit 2264)
+        font_brief = _load_font(FONT_PATHS_BOLD, 20)     # Brief description (bold, up to 2 lines)
+        font_meta = _load_font(FONT_PATHS_NORMAL, 17)    # Category, Dec PN, Location, Date
+        font_price = _load_font(FONT_PATHS_BOLD, 20)     # Price (bold)
+        font_body = _load_font(FONT_PATHS_NORMAL, 17)    # 100-word body description (clean, non-bold)
 
         dummy = Image.new('1', (1, 1))
         draw_dummy = ImageDraw.Draw(dummy)
@@ -400,6 +399,12 @@ class LegacyThermalPrinter:
         def _text_bbox(text, font):
             return draw_dummy.textbbox((0, 0), text, font=font)
 
+        # Date formatting
+        if not date_updated:
+            from datetime import datetime
+            date_updated = datetime.now().strftime("%Y-%m-%d")
+        date_display = date_updated if date_updated.startswith("Last updated:") else f"Last updated: {date_updated}"
+
         brief_lines = _wrap(brief_desc, font_brief, usable_w)
         cat_lines = _wrap(category, font_meta, usable_w)
         price_lines = _wrap(price, font_price, usable_w)
@@ -420,11 +425,13 @@ class LegacyThermalPrinter:
         if mfr_part_number:
             total_h += h_meta_line + 4
         total_h += len(brief_lines) * h_brief_line + 6
+        total_h += 12                # Divider 1 after brief description
         total_h += len(cat_lines) * h_meta_line + 4
         total_h += h_meta_line + 4  # decimal PN
         total_h += h_meta_line + 4  # location
         total_h += len(price_lines) * h_brief_line + 6  # price
-        total_h += 12                # divider line & padding
+        total_h += h_meta_line + 6  # Line 7: Last updated date
+        total_h += 12                # Divider 2 before description
         total_h += len(body_lines) * h_body_line + MARGIN
 
         img_gray = Image.new('L', (dot_width, total_h), 255)
@@ -449,6 +456,10 @@ class LegacyThermalPrinter:
             y += h_brief_line
         y += 4
 
+        # Divider line 1 (after brief description)
+        draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
+        y += 8
+
         # Line 3: Category
         for line in cat_lines:
             draw.text((MARGIN, y), line, font=font_meta, fill=0)
@@ -468,13 +479,17 @@ class LegacyThermalPrinter:
         for line in price_lines:
             draw.text((MARGIN, y), line, font=font_price, fill=0)
             y += h_brief_line
-        y += 6
+        y += 4
 
-        # Divider line
+        # Line 7: Date printed
+        draw.text((MARGIN, y), date_display, font=font_meta, fill=0)
+        y += h_meta_line + 4
+
+        # Divider line 2 (before description)
         draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
         y += 8
 
-        # Line 7: Description
+        # Line 8: Description
         for line in body_lines:
             draw.text((MARGIN, y), line, font=font_body, fill=0)
             y += h_body_line
@@ -622,6 +637,7 @@ class LegacyThermalPrinter:
         price: str,
         description: str,
         mfr_part_number: Optional[str] = None,
+        date_updated: Optional[str] = None,
         mode: str = PRINTER_LABEL_MODE,
     ) -> None:
         """Prints a component catalog label conforming to label_format.md.
@@ -643,6 +659,7 @@ class LegacyThermalPrinter:
                 price=price,
                 description=description,
                 mfr_part_number=mfr_part_number,
+                date_updated=date_updated,
             )
             self.print_bitmap(img)
             self.feed(3)
@@ -673,6 +690,9 @@ class LegacyThermalPrinter:
             self.write_line(line)
         self.set_bold(False)
 
+        # Divider line 1 (after brief description)
+        self.write_line("-" * PRINTER_CHARS_PER_LINE)
+
         # Line 3: Category (Normal)
         for line in textwrap.wrap(category, width=PRINTER_CHARS_PER_LINE):
             self.write_line(line)
@@ -690,10 +710,17 @@ class LegacyThermalPrinter:
             self.write_line(line)
         self.set_bold(False)
 
-        # Divider line
+        # Line 7: Date printed
+        if not date_updated:
+            from datetime import datetime
+            date_updated = datetime.now().strftime("%Y-%m-%d")
+        date_display = date_updated if date_updated.startswith("Last updated:") else f"Last updated: {date_updated}"
+        self.write_line(date_display)
+
+        # Divider line 2 (before description)
         self.write_line("-" * PRINTER_CHARS_PER_LINE)
 
-        # Line 7: 100-word Description (Normal)
+        # Line 8: 100-word Description (Normal)
         for line in textwrap.wrap(description, width=PRINTER_CHARS_PER_LINE):
             self.write_line(line)
 
