@@ -1,9 +1,10 @@
-"""Gemini API client for multimodal electronic component identification."""
+"""Gemini API client for multimodal electronic component identification and catalog label generation."""
 
 import json
 import logging
 import os
-from typing import Optional, Tuple
+import re
+from typing import Any, Dict, Optional, Tuple
 
 try:
     from dotenv import load_dotenv
@@ -18,39 +19,116 @@ except ImportError:
     genai = None
     types = None
 
-from dewey.config import GEMINI_MODEL, MAX_DESCRIPTION_WORDS
+from dewey.config import (
+    DEFAULT_LABEL_CATEGORY,
+    DEFAULT_LABEL_DATABASE_ID,
+    DEFAULT_LABEL_LOCATION,
+    GEMINI_MODEL,
+    MAX_DESCRIPTION_WORDS,
+)
 
 logger = logging.getLogger(__name__)
 
 SYSTEM_INSTRUCTION = (
-    "You are an expert electronics lab assistant cataloging components for an inventory database. "
-    "Examine the image carefully. The image shows an electronic component or bag of parts. "
-    "It may have a printed label (with or without a barcode or distributor info), a handwritten label, "
-    "direct component markings (laser etching, stamped part number, SMD codes, resistor bands), "
-    "or no label. "
-    "Identify the component: determine the exact manufacturer part number (MPN) or standard industry part number. "
-    "Provide a concise, informative technical description of the component (strictly 100 words maximum), "
-    "including component type, key ratings (voltage, current, tolerance, etc.), package type, and typical lab function."
+    "You are an expert electronics lab assistant cataloging components for a makerspace inventory system.\n"
+    "Examine the photograph carefully. It shows an electronic component, breakout board, IC, module, or bag of parts. "
+    "It may have printed labels, barcodes, distributor info, handwritten notes, laser etching, or SMD markings.\n"
+    "Use Google Search to research the component or board on the web to determine its exact specifications, "
+    "breakout board SKU / distributor part number (e.g. Adafruit, SparkFun, Pololu), current MSRP, "
+    "voltage and current ratings, communication interfaces, compatible libraries, and pin warnings.\n\n"
+    "Return a strictly valid JSON object with the following fields:\n"
+    "{\n"
+    '  "comp_type": "BOB", // Component classification. MUST be one of: "BOB" (Breakout board / module), "SMT" (Surface mount), "THT" (Through-hole), "PMT" (Panel mount). Prioritize: BOB > SMT > THT > PMT.\n'
+    '  "part_number": "FT232H", // Primary component / IC part number (e.g. FT232H, LM358, ESP32, 2N2222).\n'
+    '  "mfr_part_number": "(Adafruit 2264)", // Manufacturer / distributor board SKU enclosed in parentheses if this is a breakout/assembled module, or "" if bare standard component.\n'
+    '  "brief_desc": "FT232H Breakout: General Purpose USB to GPIO, SPI, I2C", // Bold summary line, strictly 64 characters maximum.\n'
+    '  "price": "MSRP: $14.95", // Typical MSRP or current retail price (e.g. "MSRP: $14.95").\n'
+    '  "description": "..." // Approximately 100-word detailed technical specification paragraph covering: essential interfaces, power supply and I/O voltages, max currents, compatible software languages/libraries, and critical pin/usage warnings needed to start using the part.\n'
+    "}\n"
+    "Output ONLY the JSON object. Do not include markdown preamble, commentary, or backticks."
 )
 
-JSON_SCHEMA = {
-    "type": "OBJECT",
-    "required": ["part_number", "description"],
-    "properties": {
-        "part_number": {
-            "type": "STRING",
-            "description": "Manufacturer part number (MPN), standard industry part number, or part designation.",
-        },
-        "description": {
-            "type": "STRING",
-            "description": "Concise technical description of the component (maximum 100 words).",
-        },
-    },
-}
+
+def extract_json_object(raw_text: str) -> Dict[str, Any]:
+    """Robustly extracts and parses a JSON object from Gemini response text."""
+    text = raw_text.strip()
+    if not text:
+        return {}
+
+    # Check for markdown code fences
+    fence_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text)
+    if fence_match:
+        try:
+            return json.loads(fence_match.group(1))
+        except Exception:
+            pass
+
+    # Try direct parse
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    # Search for outermost matching braces
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(text[start : end + 1])
+        except Exception:
+            pass
+
+    return {}
+
+
+def normalize_comp_type(val: str, default: str = "BOB") -> str:
+    """Normalizes component type according to priority: BOB > SMT > THT > PMT."""
+    v = (val or "").strip().upper()
+    if "BOB" in v or "BREAKOUT" in v or "MODULE" in v:
+        return "BOB"
+    if "SMT" in v or "SMD" in v or "SURFACE" in v:
+        return "SMT"
+    if "THT" in v or "THROUGH" in v or "DIP" in v:
+        return "THT"
+    if "PMT" in v or "PANEL" in v:
+        return "PMT"
+    return default
+
+
+def normalize_mfr_pn(val: Optional[str]) -> str:
+    """Ensures manufacturer SKU is wrapped in parentheses if present."""
+    if not val:
+        return ""
+    v = val.strip()
+    if not v or v.lower() in ("none", "n/a", "null"):
+        return ""
+    if not v.startswith("("):
+        v = f"({v}"
+    if not v.endswith(")"):
+        v = f"{v})"
+    return v
+
+
+def normalize_price(val: Optional[str]) -> str:
+    """Ensures price string follows 'MSRP: $X.XX' format."""
+    if not val:
+        return "MSRP: $0.00"
+    v = val.strip()
+    if not v or v.lower() in ("none", "n/a", "null"):
+        return "MSRP: $0.00"
+    if v.startswith("MSRP:"):
+        return v
+    if v.startswith("$"):
+        return f"MSRP: {v}"
+    # If pure number
+    match = re.search(r"(\d+(\.\d{1,2})?)", v)
+    if match:
+        return f"MSRP: ${match.group(1)}"
+    return f"MSRP: {v}"
 
 
 class GeminiComponentIdentifier:
-    """Uses Google GenAI SDK to identify electronic components from camera photographs."""
+    """Uses Google GenAI SDK with vision and Google Search grounding to catalog electronic components."""
 
     def __init__(self, api_key: Optional[str] = None, model: str = GEMINI_MODEL):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -74,8 +152,8 @@ class GeminiComponentIdentifier:
             logger.error("Failed to initialize Gemini client: %s", err)
             self.client = None
 
-    def identify_component(self, jpeg_bytes: bytes) -> Tuple[str, str]:
-        """Sends component image to Gemini and returns (part_number, description)."""
+    def identify_component(self, jpeg_bytes: bytes) -> Dict[str, Any]:
+        """Sends component image to Gemini, performs web research, and returns complete label data dict."""
         if not self.client or types is None:
             if not self.api_key:
                 raise ValueError("API Key missing: set GEMINI_API_KEY in environment or .env file.")
@@ -83,21 +161,22 @@ class GeminiComponentIdentifier:
 
         image_part = types.Part.from_bytes(data=jpeg_bytes, mime_type="image/jpeg")
         prompt = (
-            "Identify this electronic component from the photograph. "
-            "Determine its manufacturer part number (or standard part number) "
-            "and write a short description (under 100 words)."
+            "Examine this electronic component. Search the web for its specifications and pricing. "
+            "Output the catalog JSON object with comp_type, part_number, mfr_part_number, "
+            "brief_desc, price, and 100-word description."
         )
 
-        config = types.GenerateContentConfig(
-            system_instruction=SYSTEM_INSTRUCTION,
-            response_mime_type="application/json",
-            response_json_schema=JSON_SCHEMA,
-            temperature=0.2,
-        )
+        # Build tools list with Google Search grounding
+        tools = []
+        try:
+            tools.append(types.Tool(google_search=types.GoogleSearch()))
+            logger.info("Google Search grounding tool enabled for Gemini.")
+        except Exception as err:
+            logger.warning("Could not initialize GoogleSearch tool (%s); proceeding without search.", err)
 
-        # Primary and candidate fallback models
+        # Candidate models for automatic fallback
         candidate_models = [self.model]
-        for fallback in ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"]:
+        for fallback in ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]:
             if fallback not in candidate_models:
                 candidate_models.append(fallback)
 
@@ -105,42 +184,94 @@ class GeminiComponentIdentifier:
         last_err = None
 
         for candidate in candidate_models:
+            # First attempt: With Google Search grounding
             try:
-                logger.info("Sending image to Gemini (%s)...", candidate)
+                logger.info("Querying Gemini (%s) with Google Search grounding...", candidate)
+                config = types.GenerateContentConfig(
+                    system_instruction=SYSTEM_INSTRUCTION,
+                    tools=tools if tools else None,
+                    temperature=0.2,
+                )
                 response = self.client.models.generate_content(
                     model=candidate,
                     contents=[image_part, prompt],
                     config=config,
                 )
                 if candidate != self.model:
-                    logger.info("Switched active model to '%s'.", candidate)
                     self.model = candidate
                 break
             except Exception as err:
                 last_err = err
                 err_str = str(err)
-                if "404" in err_str or "NOT_FOUND" in err_str or "no longer available" in err_str:
-                    logger.warning("Model '%s' not available. Trying fallback...", candidate)
-                    continue
-                raise err
+                logger.warning("Gemini query with search failed on '%s': %s", candidate, err)
+                # If tools aren't supported on this model/endpoint, retry without tools
+                if tools and ("tool" in err_str.lower() or "not supported" in err_str.lower()):
+                    try:
+                        logger.info("Retrying '%s' without search grounding tool...", candidate)
+                        config_notools = types.GenerateContentConfig(
+                            system_instruction=SYSTEM_INSTRUCTION,
+                            temperature=0.2,
+                        )
+                        response = self.client.models.generate_content(
+                            model=candidate,
+                            contents=[image_part, prompt],
+                            config=config_notools,
+                        )
+                        break
+                    except Exception as err2:
+                        last_err = err2
+                        logger.warning("Fallback query without search failed: %s", err2)
+                continue
 
         if response is None and last_err is not None:
             raise last_err
 
         raw_text = response.text or "{}"
-        try:
-            data = json.loads(raw_text)
-            part_number = data.get("part_number", "UNKNOWN_PART").strip()
-            description = data.get("description", "No description available.").strip()
-        except Exception as err:
-            logger.warning("Could not parse JSON response from Gemini (%s), using raw text fallback.", err)
-            part_number = "IDENTIFIED_PART"
-            description = raw_text.strip()
+        parsed = extract_json_object(raw_text)
+
+        # Deduce fields from Gemini JSON
+        comp_type = normalize_comp_type(parsed.get("comp_type", "BOB"))
+        part_number = str(parsed.get("part_number", "UNKNOWN_PART")).strip()
+        mfr_part_number = normalize_mfr_pn(parsed.get("mfr_part_number"))
+
+        brief_desc = str(parsed.get("brief_desc", "")).strip()
+        if not brief_desc:
+            brief_desc = f"{part_number} Component"
+        if len(brief_desc) > 64:
+            brief_desc = brief_desc[:61] + "..."
+
+        price = normalize_price(parsed.get("price"))
+
+        description = str(parsed.get("description", "")).strip()
+        if not description:
+            description = (
+                f"{part_number} electronic component. Consult manufacturer datasheet for electrical "
+                "specifications, pinout, voltage ratings, and recommended operating conditions."
+            )
 
         # Enforce max description word count
         words = description.split()
         if len(words) > MAX_DESCRIPTION_WORDS:
             description = " ".join(words[:MAX_DESCRIPTION_WORDS]) + "..."
 
-        logger.info("Identified part: %s", part_number)
-        return part_number, description
+        label_data = {
+            "comp_type": comp_type,
+            "part_number": part_number,
+            "mfr_part_number": mfr_part_number,
+            "brief_desc": brief_desc,
+            "category": DEFAULT_LABEL_CATEGORY,
+            "decimal_pn": DEFAULT_LABEL_DATABASE_ID,
+            "location": DEFAULT_LABEL_LOCATION,
+            "price": price,
+            "description": description,
+        }
+
+        logger.info("Deduced label data: [%s] %s %s | Price: %s",
+                    comp_type, part_number, mfr_part_number, price)
+        return label_data
+
+    def identify_component_tuple(self, jpeg_bytes: bytes) -> Tuple[str, str]:
+        """Legacy helper returning (part_number, description)."""
+        data = self.identify_component(jpeg_bytes)
+        return data["part_number"], data["description"]
+

@@ -117,4 +117,19 @@ PRINTER_DTR_PIN: int | None = None
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 MAX_DESCRIPTION_WORDS = 100
 
+# --- Default Catalog Label Metadata (Example text placeholders) ---
+DEFAULT_LABEL_CATEGORY = os.getenv(
+    "DEWEY_LABEL_CATEGORY",
+    "ICs > Serial > USB > USB Converters > USB to GPIO",
+)
+DEFAULT_LABEL_DATABASE_ID = os.getenv(
+    "DEWEY_LABEL_DATABASE_ID",
+    "15.45.35.15",
+)
+DEFAULT_LABEL_LOCATION = os.getenv(
+    "DEWEY_LABEL_LOCATION",
+    "Location: Beige Cart, drawer 7",
+)
+PRINTER_LABEL_MODE = os.getenv("DEWEY_PRINTER_LABEL_MODE", "text")
+
 

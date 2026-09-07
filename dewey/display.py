@@ -135,46 +135,82 @@ class DisplayManager:
         draw.rectangle((6, 6, self.width - 7, self.height - 7), outline=COLOR_DIM_TEXT, width=1)
         self._present(canvas)
 
-    def show_component_result(self, part_number: str, description: str) -> None:
+    def show_component_result(
+        self,
+        part_number: str,
+        description: str,
+        comp_type: str = "",
+        mfr_part_number: str = "",
+        brief_desc: str = "",
+        price: str = "",
+    ) -> None:
         """Renders component identification result:
-        - Full black background
-        - Part number at top in large orange text
-        - Description below in normal size orange text
+        - Component type badge (e.g. [BOB]) in inverted colors
+        - Part number and optional manufacturer SKU
+        - Brief description and price
+        - Word-wrapped technical description
         - Footer showing available actions
         """
         canvas = Image.new("RGB", (self.width, self.height), COLOR_BG)
         draw = ImageDraw.Draw(canvas)
 
-        # --- Top Header: Part Number ---
-        margin_x = 12
-        header_y = 10
+        margin_x = 10
+        cur_y = 8
 
-        # Adjust font size if part number is exceptionally long
+        # --- Top Header: Component Badge + Part Number ---
         font_pn = self.font_large
-        bbox_pn = draw.textbbox((0, 0), part_number, font=font_pn)
-        pn_w = bbox_pn[2] - bbox_pn[0]
-        if pn_w > (self.width - 24):
-            font_pn = self.font_normal
-            bbox_pn = draw.textbbox((0, 0), part_number, font=font_pn)
+        x_pos = margin_x
 
-        draw.text((margin_x, header_y), part_number, font=font_pn, fill=COLOR_TEXT)
+        if comp_type:
+            # Draw inverted badge: Orange rectangle with black text
+            badge_text = f" {comp_type} "
+            bbox_badge = draw.textbbox((0, 0), badge_text, font=self.font_normal)
+            b_w = bbox_badge[2] - bbox_badge[0] + 6
+            b_h = bbox_badge[3] - bbox_badge[1] + 6
+            draw.rounded_rectangle([(x_pos, cur_y + 2), (x_pos + b_w, cur_y + 2 + b_h)], radius=3, fill=COLOR_TEXT)
+            draw.text((x_pos + 3, cur_y + 4), badge_text, font=self.font_normal, fill=COLOR_BG)
+            x_pos += b_w + 8
+
+        # Main Part Number
+        title_text = part_number
+        if mfr_part_number:
+            title_text = f"{part_number} {mfr_part_number}"
+
+        bbox_pn = draw.textbbox((0, 0), title_text, font=font_pn)
+        if (x_pos + (bbox_pn[2] - bbox_pn[0])) > (self.width - margin_x):
+            font_pn = self.font_normal
+            bbox_pn = draw.textbbox((0, 0), title_text, font=font_pn)
+
+        draw.text((x_pos, cur_y), title_text, font=font_pn, fill=COLOR_TEXT)
+
+        header_h = max(28, (bbox_pn[3] - bbox_pn[1]))
+        cur_y += header_h + 6
 
         # Separator line
-        sep_y = header_y + (bbox_pn[3] - bbox_pn[1]) + 8
-        draw.line([(margin_x, sep_y), (self.width - margin_x, sep_y)], fill=COLOR_DIM_TEXT, width=1)
+        draw.line([(margin_x, cur_y), (self.width - margin_x, cur_y)], fill=COLOR_DIM_TEXT, width=1)
+        cur_y += 6
 
-        # --- Body: Description ---
-        # Wrap description to ~38 characters per line to fit 320px width cleanly
-        desc_lines = textwrap.wrap(description, width=38)
-        max_lines = 8  # Limit lines to prevent overflowing bottom footer
-        cur_y = sep_y + 8
+        # --- Subheader: Brief description / Price ---
+        if brief_desc or price:
+            sub_text = brief_desc
+            if price and not sub_text.endswith(price):
+                sub_text = f"{brief_desc} | {price}" if brief_desc else price
+            for line in textwrap.wrap(sub_text, width=38)[:2]:
+                draw.text((margin_x, cur_y), line, font=self.font_normal, fill=COLOR_TEXT)
+                cur_y += 18
+            cur_y += 2
 
-        for i, line in enumerate(desc_lines[:max_lines]):
-            draw.text((margin_x, cur_y), line, font=self.font_normal, fill=COLOR_TEXT)
-            cur_y += 18
+        # --- Body: Technical Description ---
+        desc_lines = textwrap.wrap(description, width=40)
+        remaining_h = (self.height - 24) - cur_y
+        max_lines = max(1, remaining_h // 16)
+
+        for line in desc_lines[:max_lines]:
+            draw.text((margin_x, cur_y), line, font=self.font_small, fill=COLOR_TEXT)
+            cur_y += 15
 
         if len(desc_lines) > max_lines:
-            draw.text((margin_x, cur_y), "...", font=self.font_normal, fill=COLOR_DIM_TEXT)
+            draw.text((margin_x, cur_y), "...", font=self.font_small, fill=COLOR_DIM_TEXT)
 
         # --- Footer: Controls Hint ---
         footer_text = "[PRINT] Print Label   [F4] Live View   [SCAN] Rescan"

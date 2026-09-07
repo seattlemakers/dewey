@@ -51,6 +51,7 @@ class DeweyApp:
         self.gemini = GeminiComponentIdentifier()
 
         # Current identified part data
+        self.current_label_data: dict = {}
         self.current_part_number = ""
         self.current_description = ""
         self.last_error_message = ""
@@ -107,12 +108,16 @@ class DeweyApp:
             self.state = SystemState.ERROR
             return
 
-        # Query Gemini
+        # Query Gemini with vision and web grounding
         try:
-            part_number, description = self.gemini.identify_component(jpeg_bytes)
-            self.current_part_number = part_number
-            self.current_description = description
-            logger.info("Analysis complete: %s", part_number)
+            self.current_label_data = self.gemini.identify_component(jpeg_bytes)
+            self.current_part_number = self.current_label_data.get("part_number", "UNKNOWN_PART")
+            self.current_description = self.current_label_data.get("description", "")
+            logger.info("Analysis complete: [%s] %s %s | Price: %s",
+                        self.current_label_data.get("comp_type"),
+                        self.current_part_number,
+                        self.current_label_data.get("mfr_part_number", ""),
+                        self.current_label_data.get("price", ""))
             self.state = SystemState.DISPLAY_RESULT
         except Exception as err:
             logger.error("Gemini analysis failed: %s", err)
@@ -120,16 +125,26 @@ class DeweyApp:
             self.state = SystemState.ERROR
 
     def _handle_result_state(self) -> None:
-        """Display Result state: shows part number & description, listens for Print, Rescan, or F4."""
-        # Render the result screen
-        self.display.show_component_result(self.current_part_number, self.current_description)
+        """Display Result state: shows component info, listens for Print, Rescan, or F4."""
+        # Render the result screen with badge, brief description, and price
+        self.display.show_component_result(
+            part_number=self.current_part_number,
+            description=self.current_description,
+            comp_type=self.current_label_data.get("comp_type", ""),
+            mfr_part_number=self.current_label_data.get("mfr_part_number", ""),
+            brief_desc=self.current_label_data.get("brief_desc", ""),
+            price=self.current_label_data.get("price", ""),
+        )
 
         # Wait for user input
         while self.running and self.state == SystemState.DISPLAY_RESULT:
             # 1. Print button pressed (White switch, Pin 6)
             if self.hardware.is_print_pressed():
-                logger.info("Print button pressed. Sending label to thermal printer.")
-                self.printer.print_component_label(self.current_part_number, self.current_description)
+                logger.info("Print button pressed. Sending catalog label to thermal printer.")
+                if self.current_label_data:
+                    self.printer.print_catalog_label(**self.current_label_data)
+                else:
+                    self.printer.print_component_label(self.current_part_number, self.current_description)
 
             # 2. Scan button pressed again (Red switch, Pin 5) -> repeat scan
             if self.hardware.is_scan_pressed():

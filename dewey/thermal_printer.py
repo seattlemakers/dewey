@@ -32,6 +32,7 @@ from dewey.config import (
     PRINTER_HEAT_DOTS,
     PRINTER_HEAT_INTERVAL,
     PRINTER_HEAT_TIME,
+    PRINTER_LABEL_MODE,
     PRINTER_PORT,
 )
 
@@ -454,7 +455,8 @@ class LegacyThermalPrinter:
         y += 4
 
         # Line 4: Decimal part number / Database ID
-        draw.text((MARGIN, y), f"Database ID: {decimal_pn}", font=font_meta, fill=0)
+        db_id_text = decimal_pn if decimal_pn.startswith("Database ID:") else f"Database ID: {decimal_pn}"
+        draw.text((MARGIN, y), db_id_text, font=font_meta, fill=0)
         y += h_meta_line + 4
 
         # Line 5: Location
@@ -617,7 +619,7 @@ class LegacyThermalPrinter:
         price: str,
         description: str,
         mfr_part_number: Optional[str] = None,
-        mode: str = 'text',
+        mode: str = PRINTER_LABEL_MODE,
     ) -> None:
         """Prints a component catalog label conforming to label_format.md.
 
@@ -673,7 +675,8 @@ class LegacyThermalPrinter:
             self.write_line(line)
 
         # Line 4: Database decimal ID
-        self.write_line(f"Database ID: {decimal_pn}")
+        db_id_text = decimal_pn if decimal_pn.startswith("Database ID:") else f"Database ID: {decimal_pn}"
+        self.write_line(db_id_text)
 
         # Line 5: Location
         self.write_line(location)
