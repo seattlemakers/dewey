@@ -446,8 +446,8 @@ class LegacyThermalPrinter:
             y += h_meta_line
         y += 4
 
-        # Line 4: Decimal part number
-        draw.text((MARGIN, y), f"Part #: {decimal_pn}", font=font_meta, fill=0)
+        # Line 4: Decimal part number / Database ID
+        draw.text((MARGIN, y), f"Database ID: {decimal_pn}", font=font_meta, fill=0)
         y += h_meta_line + 4
 
         # Line 5: Location
@@ -665,8 +665,8 @@ class LegacyThermalPrinter:
         for line in textwrap.wrap(category, width=PRINTER_CHARS_PER_LINE):
             self.write_line(line)
 
-        # Line 4: Database decimal part number
-        self.write_line(f"Part #: {decimal_pn}")
+        # Line 4: Database decimal ID
+        self.write_line(f"Database ID: {decimal_pn}")
 
         # Line 5: Location
         self.write_line(location)

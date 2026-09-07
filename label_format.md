@@ -36,10 +36,10 @@ FT232H
 
 `ICs > Serial > USB > USB Converters > USB to GPIO`
 
-### Line 4: Database decimal part number
+### Line 4: Database ID
 *Normal font*
 
-`15.45.35.15` *(Example part number)*
+`Database ID: 15.45.35.15` *(Example database ID)*
 
 ### Line 5:
 #### Location

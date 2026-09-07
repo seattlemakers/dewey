@@ -5,7 +5,7 @@ Prints the complete catalog label specified in label_format.md:
   - Line 1.5: Manufacturer part number (Adafruit 2264)
   - Line 2:   Brief description (Bold, max 64 chars / 2 lines)
   - Line 3:   Human-readable category (Normal)
-  - Line 4:   Database decimal part number (Normal)
+  - Line 4:   Database ID (Normal)
   - Line 5:   Location (Normal)
   - Line 6:   Price (Bold)
   - Line 7:   100-word detailed description (Normal)
