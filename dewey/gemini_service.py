@@ -166,17 +166,23 @@ class GeminiComponentIdentifier:
             "brief_desc, price, and 100-word description."
         )
 
-        # Build tools list with Google Search grounding
+        # Check if search grounding is requested or disabled via environment
+        enable_search_env = os.getenv("DEWEY_ENABLE_SEARCH", "auto").lower()
+        use_search = enable_search_env not in ("0", "false", "no", "disable")
+
+        # Build tools list with Google Search grounding if enabled
         tools = []
-        try:
-            tools.append(types.Tool(google_search=types.GoogleSearch()))
-            logger.info("Google Search grounding tool enabled for Gemini.")
-        except Exception as err:
-            logger.warning("Could not initialize GoogleSearch tool (%s); proceeding without search.", err)
+        if use_search:
+            try:
+                tools.append(types.Tool(google_search=types.GoogleSearch()))
+                logger.info("Google Search grounding tool enabled for Gemini.")
+            except Exception as err:
+                logger.warning("Could not initialize GoogleSearch tool (%s); proceeding without search.", err)
+                use_search = False
 
         # Candidate models for automatic fallback
         candidate_models = [self.model]
-        for fallback in ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]:
+        for fallback in ["gemini-2.5-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"]:
             if fallback not in candidate_models:
                 candidate_models.append(fallback)
 
@@ -184,43 +190,48 @@ class GeminiComponentIdentifier:
         last_err = None
 
         for candidate in candidate_models:
-            # First attempt: With Google Search grounding
+            # 1. Attempt with Google Search grounding if enabled
+            if use_search and tools:
+                try:
+                    logger.info("Querying Gemini (%s) with Google Search grounding...", candidate)
+                    config = types.GenerateContentConfig(
+                        system_instruction=SYSTEM_INSTRUCTION,
+                        tools=tools,
+                        temperature=0.2,
+                    )
+                    response = self.client.models.generate_content(
+                        model=candidate,
+                        contents=[image_part, prompt],
+                        config=config,
+                    )
+                    if candidate != self.model:
+                        self.model = candidate
+                    break
+                except Exception as err:
+                    last_err = err
+                    logger.warning("Search-grounded query failed on '%s' (%s). Falling back to direct vision analysis...",
+                                   candidate, err)
+                    # Once search fails (e.g. 429 quota exceeded on free tier), disable search for subsequent attempts
+                    use_search = False
+
+            # 2. Direct vision analysis without search tool
             try:
-                logger.info("Querying Gemini (%s) with Google Search grounding...", candidate)
-                config = types.GenerateContentConfig(
+                logger.info("Querying Gemini (%s) using direct vision...", candidate)
+                config_notools = types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
-                    tools=tools if tools else None,
                     temperature=0.2,
                 )
                 response = self.client.models.generate_content(
                     model=candidate,
                     contents=[image_part, prompt],
-                    config=config,
+                    config=config_notools,
                 )
                 if candidate != self.model:
                     self.model = candidate
                 break
             except Exception as err:
                 last_err = err
-                err_str = str(err)
-                logger.warning("Gemini query with search failed on '%s': %s", candidate, err)
-                # If tools aren't supported on this model/endpoint, retry without tools
-                if tools and ("tool" in err_str.lower() or "not supported" in err_str.lower()):
-                    try:
-                        logger.info("Retrying '%s' without search grounding tool...", candidate)
-                        config_notools = types.GenerateContentConfig(
-                            system_instruction=SYSTEM_INSTRUCTION,
-                            temperature=0.2,
-                        )
-                        response = self.client.models.generate_content(
-                            model=candidate,
-                            contents=[image_part, prompt],
-                            config=config_notools,
-                        )
-                        break
-                    except Exception as err2:
-                        last_err = err2
-                        logger.warning("Fallback query without search failed: %s", err2)
+                logger.warning("Gemini query failed on '%s': %s", candidate, err)
                 continue
 
         if response is None and last_err is not None:
