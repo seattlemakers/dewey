@@ -27,7 +27,7 @@ FT232H
 
 ### Line 2:
 #### Brief description of part
-*Bold font. 64 characters (2 lines) max.*
+*Bold font. 64 characters (2 lines) max. Include package type if relevant.*
 
 **`FT232H Breakout: General Purpose USB to GPIO, SPI, I2C`**
 
