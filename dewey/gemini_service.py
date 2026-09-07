@@ -36,7 +36,7 @@ SYSTEM_INSTRUCTION = (
     "It may have printed labels, barcodes, distributor info, handwritten notes, laser etching, or SMD markings.\n"
     "Use Google Search to research the component or board on the web to determine its exact specifications, "
     "breakout board SKU / distributor part number (e.g. Adafruit, SparkFun, Pololu), current MSRP, "
-    "voltage and current ratings, communication interfaces, compatible libraries, and pin warnings.\n\n"
+    "voltage and current ratings, communication interfaces, compatible libraries (especially Arduino and CircuitPython if relevant), and pin warnings.\n\n"
     "Return a strictly valid JSON object with the following fields:\n"
     "{\n"
     '  "comp_type": "BOB", // Component classification. MUST be one of: "BOB" (Breakout board / module), "SMT" (Surface mount), "THT" (Through-hole), "PMT" (Panel mount), "OTH" (Other). Prioritize: BOB > SMT > THT > PMT > OTH.\n'

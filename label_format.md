@@ -73,6 +73,6 @@ FT232H
 
 ### Line 8:
 #### Description
-*100-word description of part including essential attirbutes such as interfaces, package, power and IO voltages and currents (if relevant), compatible programming languages, warnings, anything needed to start using the part.*
+*100-word description of part including essential attirbutes such as interfaces, package, power and IO voltages and currents (if relevant), compatible programming languages (especially Arduino and CircuitPython if relevant), warnings, anything needed to start using the part.*
 
 Single-channel USB 2.0 Hi-Speed (480Mbps) to UART, FIFO, I2C, SPI, JTAG, and GPIO interface breakout board. Powered via 5V USB with an onboard 3.3V regulator; digital I/O pins operate at 3.3V logic and are 5V tolerant. Delivers up to 500mA from USB and 50mA from 3.3V rail with configurable 4mA to 16mA pin drive. Multi-Protocol Synchronous Serial Engine simplifies hardware bus emulation. Fully compatible with Python (via pyFTDI and Adafruit Blinka), C/C++, and CircuitPython across Linux, macOS, and Windows. Warning: External pull-up resistors (4.7kΩ) are required on SDA/SCL for I2C operation. Avoid exceeding 3.3V on power rails without proper regulation.
