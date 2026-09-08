@@ -112,6 +112,8 @@ class HardwareManager:
         self._prev_print_state = True
         self._scan_triggered = False
         self._print_triggered = False
+        self._last_scan_time = 0.0
+        self._last_print_time = 0.0
 
         self._init_buttons()
 
@@ -132,8 +134,8 @@ class HardwareManager:
 
         try:
             # Buttons connect to GND; pull_up=True detects press when pin goes LOW
-            self.btn_scan = Button(PIN_SCAN_SWITCH, pull_up=True, bounce_time=0.08)
-            self.btn_print = Button(PIN_PRINT_SWITCH, pull_up=True, bounce_time=0.08)
+            self.btn_scan = Button(PIN_SCAN_SWITCH, pull_up=True, bounce_time=0.1)
+            self.btn_print = Button(PIN_PRINT_SWITCH, pull_up=True, bounce_time=0.1)
 
             # Attach background edge-triggered interrupt handlers
             self.btn_scan.when_pressed = self._on_scan_pressed
@@ -141,8 +143,6 @@ class HardwareManager:
 
             # Allow internal pull-ups to electrically settle, then sync initial state
             time.sleep(0.05)
-            self._prev_scan_state = True
-            self._prev_print_state = True
             self._scan_triggered = False
             self._print_triggered = False
             logger.info("Buttons initialized: Scan on GPIO %d, Print on GPIO %d (with edge interrupts)", PIN_SCAN_SWITCH, PIN_PRINT_SWITCH)
@@ -153,39 +153,31 @@ class HardwareManager:
 
     def is_scan_pressed(self) -> bool:
         """Returns True if Scan button was pressed since last check."""
-        # 1. Edge-triggered interrupt latch (never misses momentary taps during display redraw)
         if self._scan_triggered:
+            now = time.time()
+            if now - self._last_scan_time >= 0.5:
+                self._scan_triggered = False
+                self._last_scan_time = now
+                return True
             self._scan_triggered = False
-            if self.btn_scan:
-                self._prev_scan_state = self.btn_scan.is_pressed
-            return True
-
-        # 2. Polling fallback
-        if not self.btn_scan:
-            return False
-
-        current = self.btn_scan.is_pressed
-        pressed = current and not self._prev_scan_state
-        self._prev_scan_state = current
-        return pressed
+        return False
 
     def is_print_pressed(self) -> bool:
         """Returns True if Print button was pressed since last check."""
-        # 1. Edge-triggered interrupt latch
         if self._print_triggered:
+            now = time.time()
+            # 1.5s cooldown prevents accidental double-printing from hold or contact bounce
+            if now - self._last_print_time >= 1.5:
+                self._print_triggered = False
+                self._last_print_time = now
+                return True
             self._print_triggered = False
-            if self.btn_print:
-                self._prev_print_state = self.btn_print.is_pressed
-            return True
+        return False
 
-        # 2. Polling fallback
-        if not self.btn_print:
-            return False
-
-        current = self.btn_print.is_pressed
-        pressed = current and not self._prev_print_state
-        self._prev_print_state = current
-        return pressed
+    def clear_button_events(self) -> None:
+        """Flushes any pending button triggers."""
+        self._scan_triggered = False
+        self._print_triggered = False
 
     def read_keypad(self) -> Optional[str]:
         """Polls keypad and returns pressed key if any."""

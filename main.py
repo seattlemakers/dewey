@@ -308,6 +308,9 @@ class DeweyApp:
                     self.current_label_data[f["key"]] = f["val"]
                 self.current_part_number = self.current_label_data.get("part_number", self.current_part_number)
                 self.printer.print_catalog_label(**self.current_label_data)
+                # Flush any button events or contact bounce that occurred during printing
+                time.sleep(0.1)
+                self.hardware.clear_button_events()
 
             # Handle Scan - always cancels editing, captures a brand new photo, and sends to Gemini
             if is_scan:
