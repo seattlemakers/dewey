@@ -270,13 +270,17 @@ class DeweyApp:
         loc_tmpl_idx, loc_vals = parse_location(current_loc)
         price_tmpl_idx, price_vals = parse_price(current_price)
 
+        # Reset editor scroll offset so new analysis displays from the top
+        if hasattr(self.display, "_editor_scroll_offset"):
+            self.display._editor_scroll_offset = 0
+
         input_mgr = MultiTapInput()
         needs_redraw = True
         last_blink_time = time.time()
         cursor_visible = True
 
         while self.running and self.state == SystemState.DISPLAY_RESULT:
-            # 1. Physical switches
+            # 1. Physical switches (edge-triggered via background interrupts)
             is_print = self.hardware.is_print_pressed()
             is_scan = self.hardware.is_scan_pressed()
 
@@ -285,12 +289,15 @@ class DeweyApp:
             kbd_key = self.keyboard.read_key()
             key = kbd_key if kbd_key is not None else keypad_key
 
-            # Map global shortcuts when in browse mode
-            if not is_editing and key is not None:
+            # Global SCAN shortcut: ALWAYS triggers a new scan, even if currently editing text
+            if key == "SCAN":
+                is_scan = True
+                key = None
+            elif not is_editing and key is not None:
                 if key in ("p", "P", "PRINT"):
                     is_print = True
                     key = None
-                elif key in ("s", "S", "r", "R", "SCAN"):
+                elif key in ("s", "S", "r", "R"):
                     is_scan = True
                     key = None
 
@@ -302,9 +309,9 @@ class DeweyApp:
                 self.current_part_number = self.current_label_data.get("part_number", self.current_part_number)
                 self.printer.print_catalog_label(**self.current_label_data)
 
-            # Handle Scan
+            # Handle Scan - always cancels editing, captures a brand new photo, and sends to Gemini
             if is_scan:
-                logger.info("Scan button pressed. Repeating scan.")
+                logger.info("Scan button triggered (is_editing=%s). Capturing new photo and re-analyzing.", is_editing)
                 self.state = SystemState.SCANNING
                 break
 

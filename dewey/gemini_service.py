@@ -56,6 +56,7 @@ SYSTEM_INSTRUCTION = (
     '  "part_number": "FT232H", // Primary component / product name or IC part number (e.g. Raspberry Pi 3 Model B, FT232H, LM358, ESP32).\n'
     '  "mfr_part_number": "(Adafruit 2264)", // Manufacturer / distributor board SKU enclosed in parentheses if this is a breakout/assembled module, or "" if bare standard component.\n'
     '  "brief_desc": "FT232H Breakout: General Purpose USB to GPIO, SPI, I2C", // Bold summary line, strictly 64 characters maximum. Include package type if relevant.\n'
+    '  "category": "ICs > Serial > USB > USB Converters > USB to GPIO", // Hierarchical component taxonomy / category separated by " > ".\n'
     '  "price": "MSRP: $14.95", // Typical MSRP or current retail price (e.g. "MSRP: $14.95"). If price is per a quantity rather than per each, include the quantity and unit of measure (e.g. "MSRP: $2.50/10 pcs" or "MSRP: $5.00/pack").\n'
     '  "description": "..." // Approximately 100-word detailed technical specification paragraph covering: essential interfaces, package, power supply and I/O voltages, max currents, compatible software languages/libraries, and critical pin/usage warnings needed to start using the part.\n'
     "}\n"
@@ -196,7 +197,7 @@ class GeminiComponentIdentifier:
         prompt = (
             "Examine this electronic component. Output the catalog JSON object with "
             "comp_type (SBC, MCU, DEV, BOB, SMT, THT, PMT, WIR, CNS, or OTH), part_number, mfr_part_number, "
-            "brief_desc, price, and 100-word description."
+            "brief_desc, category (taxonomy breadcrumb path), price, and 100-word description."
         )
 
         # Google Search grounding triggers Automatic Function Calling (AFC) and requires
@@ -234,6 +235,7 @@ class GeminiComponentIdentifier:
                             system_instruction=SYSTEM_INSTRUCTION,
                             tools=tools,
                             temperature=0.2,
+                            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                         )
                     else:
                         logger.info("Querying Gemini (%s) using direct vision...", candidate)
@@ -303,12 +305,16 @@ class GeminiComponentIdentifier:
         if len(words) > MAX_DESCRIPTION_WORDS:
             description = " ".join(words[:MAX_DESCRIPTION_WORDS]) + "..."
 
+        category = str(parsed.get("category", "")).strip()
+        if not category or category.lower() in ("none", "n/a", "null"):
+            category = DEFAULT_LABEL_CATEGORY
+
         label_data = {
             "comp_type": comp_type,
             "part_number": part_number,
             "mfr_part_number": mfr_part_number,
             "brief_desc": brief_desc,
-            "category": DEFAULT_LABEL_CATEGORY,
+            "category": category,
             "decimal_pn": DEFAULT_LABEL_DATABASE_ID,
             "location": DEFAULT_LABEL_LOCATION,
             "price": price,
@@ -316,8 +322,8 @@ class GeminiComponentIdentifier:
             "description": description,
         }
 
-        logger.info("Deduced label data: [%s] %s %s | Price: %s",
-                    comp_type, part_number, mfr_part_number, price)
+        logger.info("Deduced label data: [%s] %s %s | Cat: %s | Price: %s",
+                    comp_type, part_number, mfr_part_number, category, price)
         return label_data
 
     def identify_component_tuple(self, jpeg_bytes: bytes) -> Tuple[str, str]:

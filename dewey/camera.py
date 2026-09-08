@@ -39,7 +39,11 @@ class CameraManager:
 
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-            logger.info("Camera %d initialized at %dx%d.", self.device_index, self.width, self.height)
+            try:
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            except Exception:
+                pass
+            logger.info("Camera %d initialized at %dx%d (buffer size 1).", self.device_index, self.width, self.height)
         except Exception as err:
             logger.warning("Failed to initialize camera: %s", err)
             self.cap = None
@@ -65,11 +69,20 @@ class CameraManager:
             mock_img.save(buf, format="JPEG")
             return buf.getvalue()
 
-        # Flush buffer by grabbing 2 frames to ensure the freshest exposure/focus
-        for _ in range(2):
+        # Flush V4L2 hardware/driver buffer (grab 8 frames) to discard any stale frames
+        # and ensure auto-exposure/white balance adapt to the newly presented component.
+        for _ in range(8):
             self.cap.grab()
 
         ret, frame = self.cap.read()
+        if not ret or frame is None:
+            logger.warning("Camera read returned empty frame. Retrying with device re-init...")
+            self._init_camera()
+            if self.cap and self.cap.isOpened():
+                for _ in range(5):
+                    self.cap.grab()
+                ret, frame = self.cap.read()
+
         if not ret or frame is None:
             logger.error("Failed to read high-res snapshot from camera.")
             return None
@@ -77,12 +90,21 @@ class CameraManager:
         # Camera is mounted inverted; rotate 180 degrees so photo sent to Gemini is right-side up
         frame = cv2.rotate(frame, cv2.ROTATE_180)
 
+        # Save to disk as latest_scan.jpg for verification and debugging
+        try:
+            cv2.imwrite("latest_scan.jpg", frame)
+            logger.info("Saved latest photo capture to latest_scan.jpg (%dx%d)", frame.shape[1], frame.shape[0])
+        except Exception as err:
+            logger.debug("Could not write latest_scan.jpg: %s", err)
+
         ret, jpeg_buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
         if not ret:
             logger.error("Failed to encode frame to JPEG.")
             return None
 
-        return bytes(jpeg_buffer)
+        jpeg_bytes = bytes(jpeg_buffer)
+        logger.info("New photo successfully captured for Gemini: %d bytes", len(jpeg_bytes))
+        return jpeg_bytes
 
     def release(self) -> None:
         """Releases the camera device."""
