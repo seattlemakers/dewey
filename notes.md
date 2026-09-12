@@ -67,13 +67,14 @@ Layout:
 | Red | Scan (take image) | 5 | `scan` |
 
 ## Printer:
-*Use the functions defined in this repo; the `adafruit_thermal_printer` library will NOT work with this printer firmware version.*
-- Maximum page width: 32 normal-size characters
-- Baud rate: 19200
-- Firmware version: 2.16
-- TX: 14
-- RX: 15
-- DTR: 4
+*Printer: https://www.dfrobot.com/product-1799.html (DFRobot Embedded Thermal Printer V2.0 / DFR0503-EN / GY-EP204X)*
+- Maximum page width: 32 normal-size characters (384 dots per line, 48mm print width, 203 DPI)
+- Baud rate: 115200 (factory default 8-N-1)
+- Protocol: ESC/POS (receipt mode) / Label mode
+- Logic: 3.3V TTL
+- TX: 14 (Pi TX -> Printer RX)
+- RX: 15 (Pi RX <- Printer TX)
+- DTR: 4 (optional)
 
 ## Screen:
 - Driver: ILI9341

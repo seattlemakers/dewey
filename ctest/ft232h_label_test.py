@@ -51,11 +51,12 @@ LABEL_DATA = {
 
 def main():
     print(f"Active parameters from dewey/config.py:")
-    print(f"  • ESC 7: dots={config.PRINTER_HEAT_DOTS} ({(config.PRINTER_HEAT_DOTS+1)*8} dots), "
-          f"heat_time={config.PRINTER_HEAT_TIME} ({config.PRINTER_HEAT_TIME*10}µs), "
-          f"interval={config.PRINTER_HEAT_INTERVAL} ({config.PRINTER_HEAT_INTERVAL*10}µs)")
-    print(f"  • DC2 #: density={config.PRINTER_DENSITY} ({50+5*config.PRINTER_DENSITY}%), "
-          f"break_time={config.PRINTER_BREAK_TIME} ({config.PRINTER_BREAK_TIME*250}µs)")
+    print(f"  • Port: {config.PRINTER_PORT}")
+    print(f"  • Baudrate: {config.PRINTER_BAUDRATE}")
+    print(f"  • Default settings: {config.PRINTER_USE_DEFAULT_SETTINGS}")
+    if not config.PRINTER_USE_DEFAULT_SETTINGS:
+        print(f"  • ESC 7: dots={config.PRINTER_HEAT_DOTS}, heat_time={config.PRINTER_HEAT_TIME}, interval={config.PRINTER_HEAT_INTERVAL}")
+        print(f"  • DC2 #: density={config.PRINTER_DENSITY}, break_time={config.PRINTER_BREAK_TIME}")
 
     print("Connecting to thermal printer...")
     printer = LegacyThermalPrinter()

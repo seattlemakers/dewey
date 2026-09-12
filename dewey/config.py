@@ -62,19 +62,26 @@ KEYPAD_MAP = [
 ]
 
 # --- Thermal Printer ---
-# ESC/POS legacy driver (v2.16 firmware, 19200 baud, TX only on GPIO 14)
+# DFRobot Embedded Thermal Printer V2.0 (SKU: DFR0503-EN / GY-EP204X)
+# Default serial baudrate: 115200 baud, 8-N-1, TTL 3.3V logic (GPIO 14 TX, GPIO 15 RX)
 PRINTER_PORT = os.getenv("DEWEY_PRINTER_PORT", "/dev/serial0")
-PRINTER_BAUDRATE = 19200
+PRINTER_BAUDRATE = int(os.getenv("DEWEY_PRINTER_BAUDRATE", "115200"))
 PRINTER_CHARS_PER_LINE = 32
-# Physical paper width in printer dots (58mm paper @ 203 DPI ≈ 384 dots).
+# Physical paper width in printer dots (58mm paper @ 203 DPI ≈ 384 dots, 48mm print width).
 PRINTER_DOTS_PER_LINE = int(os.getenv("DEWEY_PRINTER_DOTS_PER_LINE", "384"))
 
+# When True, uses factory default printer settings (initialized via ESC @)
+# and skips legacy vendor-specific heating/density overrides (ESC 7 / DC2 #).
+PRINTER_USE_DEFAULT_SETTINGS = os.getenv(
+    "DEWEY_PRINTER_USE_DEFAULT_SETTINGS", "1"
+).lower() in ("1", "true", "yes")
+
 # ===========================================================================
-# Thermal Printer Control Parameters: ESC 7 and DC2 # Commands
+# Thermal Printer Control Parameters: ESC 7 and DC2 # Commands (Legacy Only)
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
-# Command: ESC 7 n1 n2 n3 — Setting Control Parameter Command
+# Command: ESC 7 n1 n2 n3 — Setting Control Parameter Command (Legacy Adafruit)
 # Format:
 #   ASCII:  ESC        '7'       n1   n2   n3
 #   Hex:    0x1B       0x37      n1   n2   n3
@@ -82,24 +89,17 @@ PRINTER_DOTS_PER_LINE = int(os.getenv("DEWEY_PRINTER_DOTS_PER_LINE", "384"))
 # ---------------------------------------------------------------------------
 
 # Parameter n1 (Byte 3 of ESC 7): Max heating dots
-#   Formula: (n1 + 1) * 8 dots fired simultaneously across 384-dot head. Range: 0-255.
-#   Default: 7 (64 dots = 1/6 width). Lower values (7-10 = 64-88 dots) limit peak current on 5V supply.
-PRINTER_HEAT_DOTS = int(os.getenv("DEWEY_PRINTER_HEAT_DOTS", "7"))  # ESC 7 -> n1: ((n1+1)*8 dots: 16 = 136 dots)
+PRINTER_HEAT_DOTS = int(os.getenv("DEWEY_PRINTER_HEAT_DOTS", "7"))
 
 # Parameter n2 (Byte 4 of ESC 7): Heating pulse duration
-#   Formula: n2 * 10 µs burn pulse duration per dot group. Range: 3-255.
-#   Default: 80 (800 µs). Higher values = darker print, but increases line print time.
-PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "80"))  # ESC 7 -> n2: (burn time: n2*10µs: 255 = 2550 µs)
+PRINTER_HEAT_TIME = int(os.getenv("DEWEY_PRINTER_HEAT_TIME", "80"))
 
 # Parameter n3 (Byte 5 of ESC 7): Heating recovery interval
-#   Formula: n3 * 10 µs pause between dot groups on each line. Range: 0-255.
-#   Default: 2 (20 µs). Recommended: 20-40 (200-400 µs).
-#   CRITICAL: If set too high (e.g. 255 = 2.55 ms), the head cools down completely, causing faint/dim text.
-PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "2"))  # ESC 7 -> n3: (recovery pause: n3*10µs: 2 = 20 µs)
+PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "2"))
 
 
 # ---------------------------------------------------------------------------
-# Command: DC2 # n — Set Printing Density and Break Time
+# Command: DC2 # n — Set Printing Density and Break Time (Legacy Adafruit)
 # Format:
 #   ASCII:  DC2        '#'       n
 #   Hex:    0x12       0x23      n
@@ -107,14 +107,10 @@ PRINTER_HEAT_INTERVAL = int(os.getenv("DEWEY_PRINTER_HEAT_INTERVAL", "2"))  # ES
 # ---------------------------------------------------------------------------
 
 # Parameter n, Bits 4..0 (D4-D0 of DC2 #): Print density
-#   Formula: Density = 50% + 5% * n[D4..D0]. Range: 0-31 (0x00 - 0x1F).
-#   Values: 0 = 50% (lightest), 10 = 100% (normal), 15 = 125%, 31 = 205% (maximum darkness).
-PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "31"))  # DC2 # -> n bits 4..0: (density: 50% + 5%*n: 10 = 100%)
+PRINTER_DENSITY = int(os.getenv("DEWEY_PRINTER_DENSITY", "31"))
 
 # Parameter n, Bits 7..5 (D7-D5 of DC2 #): Inter-line break time
-#   Formula: Break Time = n[D7..D5] * 250 µs cooling wait between printing lines. Range: 0-7 (0x00 - 0x07, shifted << 5).
-#   Values: 0 = 0 µs, 2 = 500 µs, 7 = 1750 µs.
-PRINTER_BREAK_TIME = int(os.getenv("DEWEY_PRINTER_BREAK_TIME", "2"))  # DC2 # -> n bits 7..5: (break time: n*250µs: 2 = 500 µs)
+PRINTER_BREAK_TIME = int(os.getenv("DEWEY_PRINTER_BREAK_TIME", "2"))
 
 # DTR pin (BCM): None to disable hardware handshake (prevents GPIO floating/timing glitches)
 PRINTER_DTR_PIN: int | None = None

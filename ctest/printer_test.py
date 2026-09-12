@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from dewey_thermal import LegacyThermalPrinter
 
 # Initialize the printer connection
-printer = LegacyThermalPrinter(port="/dev/serial0", baudrate=19200)
+printer = LegacyThermalPrinter(port="/dev/serial0", baudrate=115200)
 
 print("Printer initialized")
 

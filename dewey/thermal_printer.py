@@ -34,20 +34,28 @@ from dewey.config import (
     PRINTER_HEAT_TIME,
     PRINTER_LABEL_MODE,
     PRINTER_PORT,
+    PRINTER_USE_DEFAULT_SETTINGS,
 )
 
 logger = logging.getLogger(__name__)
 
 
 class LegacyThermalPrinter:
-    """Lightweight driver for legacy Adafruit/ESC-POS thermal printers (v2.16.x)."""
+    """Driver for DFRobot Embedded Thermal Printer V2.0 (DFR0503-EN) and ESC/POS thermal printers."""
 
-    def __init__(self, port: str = PRINTER_PORT, baudrate: int = PRINTER_BAUDRATE, timeout: float = 1.0,
-                 dtr_pin: Optional[int] = PRINTER_DTR_PIN):
+    def __init__(
+        self,
+        port: str = PRINTER_PORT,
+        baudrate: int = PRINTER_BAUDRATE,
+        timeout: float = 1.0,
+        dtr_pin: Optional[int] = PRINTER_DTR_PIN,
+        use_default_settings: bool = PRINTER_USE_DEFAULT_SETTINGS,
+    ):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
         self.dtr_pin = dtr_pin
+        self.use_default_settings = use_default_settings
         self.ser: Optional["serial.Serial"] = None
         self._setup_dtr()
         self._connect()
@@ -91,33 +99,39 @@ class LegacyThermalPrinter:
             self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=self.timeout)
             time.sleep(0.3)
             self.reset()
-            logger.info("Thermal printer connected on %s at %d baud.", self.port, self.baudrate)
+            logger.info("Thermal printer connected on %s at %d baud (use_default_settings=%s).",
+                        self.port, self.baudrate, self.use_default_settings)
         except Exception as err:
             logger.warning("Could not open thermal printer on %s: %s (mock mode active)", self.port, err)
             self.ser = None
 
     def reset(self) -> None:
-        """Resets printer memory settings to defaults and applies dark print parameters."""
+        """Resets printer memory settings to factory defaults using ESC @."""
         if self.ser:
             self.ser.write(b'\x1b\x40')
             self.ser.flush()
-            # The printer microcontroller needs 250ms to cold boot and reinitialize
+            # Microcontroller needs 250ms to cold boot and reinitialize
             time.sleep(0.25)
-        # Apply dark heating parameters and density immediately after reset
-        self.set_heat_config()
-        self.set_print_density()
+        if not self.use_default_settings:
+            # Apply legacy custom heating parameters only when explicitly configured
+            self.set_heat_config()
+            self.set_print_density()
+        else:
+            logger.info("[PRINTER] Using printer default settings (ESC @ applied).")
 
     def set_heat_config(
         self,
         dots: int = PRINTER_HEAT_DOTS,
         heat_time: int = PRINTER_HEAT_TIME,
         interval: int = PRINTER_HEAT_INTERVAL,
+        force: bool = False,
     ) -> None:
-        """Sets heating control parameters (ESC 7 n1 n2 n3).
-        dots: Max heating dots fired simultaneously (0-255, in units of 8 dots).
-        heat_time: Heating duration per dot (3-255, in units of 10µs). Higher = darker.
-        interval: Recovery cooling interval between dot groups (0-255, in units of 10µs).
+        """Sets heating control parameters (ESC 7 n1 n2 n3) for legacy printers.
+        Skipped if use_default_settings is True unless force=True.
         """
+        if self.use_default_settings and not force:
+            logger.debug("[PRINTER] Skipping ESC 7 (using printer default settings).")
+            return
         logger.info("[PRINTER] ESC 7 applied: dots=%d ((n1+1)*8=%d), heat_time=%d (%dµs), interval=%d (%dµs)",
                     dots, (dots + 1) * 8, heat_time, heat_time * 10, interval, interval * 10)
         if self.ser:
@@ -133,11 +147,14 @@ class LegacyThermalPrinter:
         self,
         density: int = PRINTER_DENSITY,
         break_time: int = PRINTER_BREAK_TIME,
+        force: bool = False,
     ) -> None:
-        """Sets print darkness density and break time (DC2 # n).
-        density: 0-31 (0 = 50%, 10 = 100%, 31 = 205% max darkness).
-        break_time: 0-7 (in units of 250µs).
+        """Sets print darkness density and break time (DC2 # n) for legacy printers.
+        Skipped if use_default_settings is True unless force=True.
         """
+        if self.use_default_settings and not force:
+            logger.debug("[PRINTER] Skipping DC2 # (using printer default settings).")
+            return
         val = ((break_time & 0x07) << 5) | (density & 0x1F)
         logger.info("[PRINTER] DC2 # applied: density=%d (%d%%), break_time=%d (%dµs), raw=0x%02X",
                     density, 50 + 5 * density, break_time, break_time * 250, val)
@@ -189,16 +206,13 @@ class LegacyThermalPrinter:
 
     # --- BITMAP / RASTER PRINTING ---
 
-    def print_bitmap(self, image: "Image.Image") -> None:
-        """Sends a PIL image using ESC * 24-dot double-density column mode.
+    def print_bitmap(self, image: "Image.Image", method: str = "raster") -> None:
+        """Sends a PIL image to the thermal printer.
 
-        GS v 0 (raster mode) is unreliable on v2.16 firmware. ESC * (column
-        bit-image mode) is the legacy-safe method used by the Adafruit library.
-
-        The image is processed in 24-row strips. For each strip, the column
-        data is packed MSB-first (topmost dot = bit 7) and sent as:
-            ESC * 33 nL nH  [3 bytes per column × width]
-        with line spacing set to exactly 24 dots between strips.
+        Supported methods:
+          - 'raster' (default): Native ESC/POS GS v 0 raster bit-image mode (A29).
+            High-speed, line-accurate, supported natively by DFRobot Embedded Thermal Printer V2.0.
+          - 'column': Legacy ESC * 24-dot column bit-image mode.
         """
         if Image is None:
             logger.warning("Pillow not installed — cannot print bitmap.")
@@ -209,26 +223,57 @@ class LegacyThermalPrinter:
         pixels = bw.load()
 
         if not self.ser:
-            logger.info("[PRINTER MOCK BITMAP] %dx%d px", w, h)
+            logger.info("[PRINTER MOCK BITMAP (%s)] %dx%d px", method, w, h)
             return
 
-        # Ensure dark heat settings are active before printing
-        self.set_heat_config()
+        if not self.use_default_settings:
+            self.set_heat_config()
 
-        # Set line spacing to 24 dots so strips tile flush
+        if method == "raster":
+            # Native ESC/POS GS v 0 raster bit-image mode (1D 76 30 00 xL xH yL yH d1...dk)
+            # xL, xH: number of horizontal bytes (width in dots / 8)
+            # yL, yH: number of vertical dots (chunk height)
+            x_bytes = (w + 7) // 8
+            CHUNK_H = 128  # Transmit in 128-row chunks for smooth printing & buffer safety
+
+            for y0 in range(0, h, CHUNK_H):
+                strip_h = min(CHUNK_H, h - y0)
+                raw = bytearray()
+                for y in range(y0, y0 + strip_h):
+                    for xb in range(x_bytes):
+                        byte_val = 0
+                        x_base = xb * 8
+                        for bit in range(8):
+                            x = x_base + bit
+                            # In PIL '1': 0 = black (print dot), 255 = white
+                            if x < w and pixels[x, y] == 0:
+                                byte_val |= (0x80 >> bit)
+                        raw.append(byte_val)
+
+                xL = x_bytes & 0xFF
+                xH = (x_bytes >> 8) & 0xFF
+                yL = strip_h & 0xFF
+                yH = (strip_h >> 8) & 0xFF
+                cmd = b'\x1d\x76\x30\x00' + bytes([xL, xH, yL, yH]) + bytes(raw)
+                self._wait_for_ready()
+                self.ser.write(cmd)
+                self.ser.flush()
+                # Inter-chunk pacing
+                time.sleep(0.08)
+            return
+
+        # Fallback: legacy ESC * 24-dot column bit-image mode
         self.ser.write(b'\x1b\x33\x18')  # ESC 3 24
         self.ser.flush()
 
         for y0 in range(0, h, 24):
             strip_h = min(24, h - y0)
 
-            # Build column data: 3 bytes per column (24 vertical dots each)
             col_data = bytearray()
             for x in range(w):
                 b0 = b1 = b2 = 0
                 for row in range(strip_h):
                     y = y0 + row
-                    # PIL '1': 0 = black (print dot), 255 = white
                     if pixels[x, y] == 0:
                         if row < 8:
                             b0 |= (0x80 >> row)
@@ -243,13 +288,8 @@ class LegacyThermalPrinter:
             strip_packet = b'\x1b\x2a\x21' + bytes([nL, nH]) + bytes(col_data) + b'\n'
             self.ser.write(strip_packet)
             self.ser.flush()
-            # Inter-strip pause: burning 24 dot lines takes ~250-300ms.
-            # Without this pause, the printer's 64-byte FIFO accumulates data across
-            # strips until it overflows on strip 3-4, dropping out of bitmap mode
-            # and printing the remaining raw binary pixels as ASCII garbage.
             time.sleep(0.35)
 
-        # Restore default line spacing (1/6 inch)
         self.ser.write(b'\x1b\x32')  # ESC 2
         self.ser.flush()
 
@@ -652,7 +692,8 @@ class LegacyThermalPrinter:
         Supports both 'text' (native ESC/POS) and 'bitmap' (Pillow TrueType rendering).
         """
         logger.info("Printing catalog label (%s): [%s] %s", mode, comp_type, part_number)
-        self.set_heat_config()
+        if not self.use_default_settings:
+            self.set_heat_config()
 
         if mode == 'bitmap':
             self.feed(1)
@@ -748,3 +789,6 @@ class LegacyThermalPrinter:
             except Exception:
                 pass
             self.ser = None
+
+
+ThermalPrinter = LegacyThermalPrinter

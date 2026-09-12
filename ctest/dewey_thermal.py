@@ -6,7 +6,7 @@ import serial
 import time
 
 class LegacyThermalPrinter:
-    def __init__(self, port='/dev/serial0', baudrate=19200, timeout=1):
+    def __init__(self, port='/dev/serial0', baudrate=115200, timeout=1):
         """Initializes the serial connection and resets the printer."""
         self.ser = serial.Serial(port, baudrate=baudrate, timeout=timeout)
         time.sleep(0.5)
