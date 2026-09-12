@@ -20,6 +20,7 @@ from dewey.config import (
     LOCATION_OPTIONS,
     PING_HOST,
     PING_INTERVAL,
+    PRINTER_LABEL_MODE,
 )
 from dewey.display import DisplayManager
 from dewey.field_models import (
@@ -303,11 +304,11 @@ class DeweyApp:
 
             # Handle Print
             if is_print:
-                logger.info("Print button pressed. Sending edited catalog label to thermal printer.")
+                logger.info("Print button pressed. Sending edited catalog label to thermal printer (mode=%s).", PRINTER_LABEL_MODE)
                 for f in editable_fields:
                     self.current_label_data[f["key"]] = f["val"]
                 self.current_part_number = self.current_label_data.get("part_number", self.current_part_number)
-                self.printer.print_catalog_label(**self.current_label_data)
+                self.printer.print_catalog_label(**self.current_label_data, mode=PRINTER_LABEL_MODE)
                 # Flush any button events or contact bounce that occurred during printing
                 time.sleep(0.1)
                 self.hardware.clear_button_events()

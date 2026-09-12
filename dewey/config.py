@@ -132,7 +132,7 @@ DEFAULT_LABEL_LOCATION = os.getenv(
     "DEWEY_LABEL_LOCATION",
     "Location: Beige Cart, drawer 7",
 )
-PRINTER_LABEL_MODE = os.getenv("DEWEY_PRINTER_LABEL_MODE", "text")
+PRINTER_LABEL_MODE = os.getenv("DEWEY_PRINTER_LABEL_MODE", "bitmap")
 
 # --- Editable Field Preset Options ---
 COMP_TYPE_OPTIONS = [
