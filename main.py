@@ -182,11 +182,13 @@ class DeweyApp:
             self.last_error_message = str(err)
             self.state = SystemState.ERROR
 
-    def _execute_print(self, editable_fields: list, include_description: bool = True) -> None:
+    def _execute_print(self, editable_fields: list, include_description: bool = False) -> None:
         """Sends the edited catalog label to the thermal printer.
 
-        If include_description is False (triggered by double-pressing print),
+        If include_description is False (triggered by single-pressing print),
         the 100-word long description and its preceding divider are omitted.
+        If include_description is True (triggered by double-pressing print),
+        the full 100-word description is included.
         """
         for f in editable_fields:
             self.current_label_data[f["key"]] = f["val"]
@@ -196,7 +198,7 @@ class DeweyApp:
         if not include_description:
             label_to_print["description"] = ""
 
-        desc_status = "WITH description" if include_description else "WITHOUT description (double-press short label)"
+        desc_status = "WITH description (double-press long label)" if include_description else "WITHOUT description (single-press short label)"
         logger.info(
             "Sending catalog label to printer (mode=%s, %s).",
             PRINTER_LABEL_MODE,
@@ -214,8 +216,8 @@ class DeweyApp:
           - Browse mode (is_editing=False):
               F1 / F2 / Up / Down: Move cursor up / down between fields
               ENT / Return: Enter edit mode on selected field
-              PRINT switch / 'P': Print label (single-press = full label with description;
-                                              double-press = short label without description)
+              PRINT switch / 'P': Print label (single-press = short label without description;
+                                              double-press = long label with description)
               SCAN switch / 'S' / 'R': Rescan new image
               F4 / ESC / 'Q': Exit to live camera view
           - Edit mode (is_editing=True):
@@ -303,6 +305,7 @@ class DeweyApp:
 
         input_mgr = MultiTapInput()
         needs_redraw = True
+        cursor_visible = True
         last_blink_time = time.time()
         pending_print_time = 0.0
         DOUBLE_PRESS_WINDOW = 0.45  # Seconds to detect double-press of print button
@@ -333,9 +336,9 @@ class DeweyApp:
             if is_print:
                 now = time.time()
                 if pending_print_time > 0 and (now - pending_print_time) <= DOUBLE_PRESS_WINDOW:
-                    # Double-press confirmed! Print without long description
-                    logger.info("Print button double-pressed! Printing catalog label WITHOUT long description.")
-                    self._execute_print(editable_fields, include_description=False)
+                    # Double-press confirmed! Print full label WITH long description
+                    logger.info("Print button double-pressed! Printing full catalog label WITH long description.")
+                    self._execute_print(editable_fields, include_description=True)
                     pending_print_time = 0.0
                 else:
                     # First press recorded; wait for possible second press
@@ -343,8 +346,8 @@ class DeweyApp:
 
             # Check if single-press wait window has expired without a second press
             if pending_print_time > 0 and (time.time() - pending_print_time) > DOUBLE_PRESS_WINDOW:
-                logger.info("Print button single-pressed. Printing full catalog label WITH long description.")
-                self._execute_print(editable_fields, include_description=True)
+                logger.info("Print button single-pressed. Printing short catalog label WITHOUT long description.")
+                self._execute_print(editable_fields, include_description=False)
                 pending_print_time = 0.0
 
             # Handle Scan - always cancels editing, captures a brand new photo, and sends to Gemini

@@ -53,19 +53,19 @@ def main():
     printer = ThermalPrinter()
     print("Printer initialized.\n")
 
-    # 1. Full Bitmap Label (Single press equivalent: with 100-word long description)
-    print("--> 1/2: Printing FULL catalog label in Bitmap Mode (Single-press: with long description)...")
-    printer.print_catalog_label(**LABEL_DATA, mode="bitmap")
-    print("    Full label sent.")
+    # 1. Short Bitmap Label (Single-press equivalent: WITHOUT long description)
+    print("--> 1/2: Printing SHORT catalog label in Bitmap Mode (Single-press: WITHOUT long description)...")
+    short_label_data = dict(LABEL_DATA, description="")
+    printer.print_catalog_label(**short_label_data, mode="bitmap")
+    print("    Short label sent.")
 
     # Brief delay between test prints
     time.sleep(1.0)
 
-    # 2. Short Bitmap Label (Double press equivalent: without long description)
-    print("--> 2/2: Printing SHORT catalog label in Bitmap Mode (Double-press: WITHOUT long description)...")
-    short_label_data = dict(LABEL_DATA, description="")
-    printer.print_catalog_label(**short_label_data, mode="bitmap")
-    print("    Short label sent.")
+    # 2. Full Bitmap Label (Double-press equivalent: WITH 100-word long description)
+    print("--> 2/2: Printing FULL catalog label in Bitmap Mode (Double-press: WITH long description)...")
+    printer.print_catalog_label(**LABEL_DATA, mode="bitmap")
+    print("    Full label sent.")
 
     printer.close()
     print("\n" + "=" * 60)
