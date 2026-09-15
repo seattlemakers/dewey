@@ -473,9 +473,11 @@ class LegacyThermalPrinter:
             total_h += h_meta_line + 4  # location
         if price:
             total_h += len(price_lines) * h_brief_line + 6  # price
-        total_h += h_meta_line + 6  # Line 7: Last updated date
-        total_h += 12                # Divider 2 before description
-        total_h += len(body_lines) * h_body_line + MARGIN
+        has_desc = bool(description and description.strip())
+        if has_desc:
+            total_h += 12                # Divider 2 before description
+            total_h += len(body_lines) * h_body_line
+        total_h += MARGIN
 
         img_gray = Image.new('L', (dot_width, total_h), 255)
         draw = ImageDraw.Draw(img_gray)
@@ -532,14 +534,15 @@ class LegacyThermalPrinter:
         draw.text((MARGIN, y), date_display, font=font_meta, fill=0)
         y += h_meta_line + 4
 
-        # Divider line 2 (before description)
-        draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
-        y += 8
+        if has_desc:
+            # Divider line 2 (before description)
+            draw.line([(MARGIN, y), (dot_width - MARGIN, y)], fill=0, width=2)
+            y += 8
 
-        # Line 8: Description
-        for line in body_lines:
-            draw.text((MARGIN, y), line, font=font_body, fill=0)
-            y += h_body_line
+            # Line 8: Description
+            for line in body_lines:
+                draw.text((MARGIN, y), line, font=font_body, fill=0)
+                y += h_body_line
 
         return img_gray.point(lambda p: 0 if p < 190 else 255, mode='1')
 
@@ -768,12 +771,13 @@ class LegacyThermalPrinter:
         date_display = date_updated if date_updated.startswith("Last updated:") else f"Last updated: {date_updated}"
         self.write_line(date_display)
 
-        # Divider line 2 (before description)
-        self.write_line("-" * PRINTER_CHARS_PER_LINE)
+        if description and description.strip():
+            # Divider line 2 (before description)
+            self.write_line("-" * PRINTER_CHARS_PER_LINE)
 
-        # Line 8: 100-word Description (Normal)
-        for line in textwrap.wrap(description, width=PRINTER_CHARS_PER_LINE):
-            self.write_line(line)
+            # Line 8: 100-word Description (Normal)
+            for line in textwrap.wrap(description, width=PRINTER_CHARS_PER_LINE):
+                self.write_line(line)
 
         # Clean feed for tearing
         self.feed(3)

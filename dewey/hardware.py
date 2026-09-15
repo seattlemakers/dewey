@@ -166,8 +166,8 @@ class HardwareManager:
         """Returns True if Print button was pressed since last check."""
         if self._print_triggered:
             now = time.time()
-            # 1.5s cooldown prevents accidental double-printing from hold or contact bounce
-            if now - self._last_print_time >= 1.5:
+            # 0.15s debounce allows intentional double-presses (within 0.5s) while filtering contact bounce
+            if now - self._last_print_time >= 0.15:
                 self._print_triggered = False
                 self._last_print_time = now
                 return True
@@ -178,6 +178,8 @@ class HardwareManager:
         """Flushes any pending button triggers."""
         self._scan_triggered = False
         self._print_triggered = False
+        self._last_print_time = time.time()
+        self._last_scan_time = time.time()
 
     def read_keypad(self) -> Optional[str]:
         """Polls keypad and returns pressed key if any."""
