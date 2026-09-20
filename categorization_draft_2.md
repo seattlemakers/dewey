@@ -46,7 +46,7 @@ Capacitors, variable
 	- Through-hole
 	- SMT
 #### Fuses, discreet circuit protection
-*In least significant category, fuses are sorted first by size, then by rating.*
+*In least significant category, fuses and varistors are sorted first by package (size), then by rating.*
 - Automotive fuses
 - Cartridge fuses
 - Thermal fuses
@@ -123,8 +123,6 @@ Capacitors, variable
 - Thyristors
 #### Coils / Relays
 *In least significant category, inductors are sorted first by value, then by power rating.*
-*In least significant category, transformers are sorted by power.*
-*In least significant category, relays are sorted first by maximum power switching capacity (DC or AC), then by coil voltage.*
 - Inductors
 	- THT
 	- SMT
@@ -136,6 +134,7 @@ Capacitors, variable
 	- Snap-on ferrites
 - Filters and reactors
 - Transformers
+*In least significant category, transformers are sorted by power.*
 	- Power transformers
 		- Through-hole
 		- SMT
@@ -147,6 +146,7 @@ Capacitors, variable
 			- Through-hole
 			- SMT
 - Relays
+*In least significant category, relays are sorted first by maximum power switching capacity (DC or AC), then by coil voltage.*
 	- Electromagnetic relays
 		- Through-hole
 		- SMT
@@ -154,6 +154,9 @@ Capacitors, variable
 		- Through-hole
 		- SMT
 #### LEDs and Illumination
+- Discreet LEDs
+- LED Arrays
+- LED Strips
 #### Buttons and Switches
 #### Encoders
 *Encoders for motor control or robotics are listed in the Robotics category.*
